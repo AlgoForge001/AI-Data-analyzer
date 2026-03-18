@@ -83,7 +83,7 @@ const AnalysisOutput = ({ data, loading }) => {
 
             {/* ===== CASE 0: Charts array (data.charts with filename + image_base64) ===== */}
             {hasCharts && (
-                <div className="flex flex-col gap-8 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                     {data.charts.map((chart, index) => (
                         <div key={index} className="bg-[#1a2333]/40 rounded-3xl border border-white/5 p-4 overflow-hidden">
                             {chart.filename && (
@@ -114,7 +114,7 @@ const AnalysisOutput = ({ data, loading }) => {
 
             {/* ===== CASE 1B: Multiple Base64 Chart Images (data.images array) ===== */}
             {!hasCharts && !hasSingleImage && hasImages && (
-                <div className="flex flex-col gap-8 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                     {data.images.map((img, index) => (
                         <div key={index} className="bg-[#1a2333]/40 rounded-3xl border border-white/5 p-4 overflow-hidden">
                             <img

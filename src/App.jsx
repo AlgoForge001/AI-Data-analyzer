@@ -78,19 +78,19 @@ function App() {
                         )}
 
                         {/* Analyze Button */}
-                        <div className="flex justify-center mb-12">
+                        <div className="flex justify-center mb-12 relative z-10 w-full">
                             <button
                                 onClick={handleAnalyze}
                                 disabled={loading}
-                                className={`btn-gradient px-12 py-5 rounded-2xl font-black text-xl flex items-center gap-3 active:scale-95 group transition-all ${loading ? 'opacity-70 cursor-not-allowed grayscale' : 'hover:scale-105 shadow-glow'
+                                className={`btn-gradient w-2/3 max-w-md py-5 rounded-2xl font-black text-xl flex items-center justify-center gap-4 group transition-all shadow-[0_0_40px_rgba(123,47,247,0.4)] ${loading ? 'opacity-70 cursor-not-allowed grayscale' : 'hover:scale-[1.02]'
                                     }`}
                             >
                                 {loading ? (
-                                    <Loader2 size={24} className="animate-spin" />
+                                    <Loader2 size={26} className="animate-spin" />
                                 ) : (
-                                    <Zap size={24} className="group-hover:fill-current transition-all" />
+                                    <Zap size={26} className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)] animate-pulse" />
                                 )}
-                                {loading ? 'Analyzing Data...' : 'Execute Analysis'}
+                                <span className="tracking-wide drop-shadow-md">{loading ? 'Analyzing Data...' : 'Execute Analysis'}</span>
                             </button>
                         </div>
 
@@ -98,9 +98,11 @@ function App() {
                         <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-white/5 to-transparent mb-10"></div>
 
                         {/* Analysis Viewport Area */}
-                        <div className="flex-1 rounded-[2rem] border border-white/5 bg-white/[0.02] overflow-hidden min-h-[400px]">
+                        <div className="rounded-[20px] border border-white/5 bg-[rgba(255,255,255,0.01)] overflow-hidden min-h-[400px] shadow-inner mb-12">
                             <AnalysisOutput data={analysisData} loading={loading} />
                         </div>
+
+
                     </div>
                 </main>
             </div>
