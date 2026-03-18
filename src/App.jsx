@@ -7,6 +7,7 @@ import AnalysisOutput from './components/AnalysisOutput';
 import { Zap, Loader2, AlertCircle } from 'lucide-react';
 
 function App() {
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [file, setFile] = useState(null);
     const [prompt, setPrompt] = useState('');
     const [loading, setLoading] = useState(false);
@@ -57,11 +58,11 @@ function App() {
 
     return (
         <div className="flex min-h-screen bg-[#0b0f19] text-white">
-            <Sidebar />
-            <div className="flex-1 ml-[220px] flex flex-col min-h-screen">
-                <Header />
+            <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+            <div className="flex-1 lg:ml-[220px] flex flex-col min-h-screen min-w-0">
+                <Header onMenuClick={() => setIsSidebarOpen(true)} />
 
-                <main className="p-10 flex-1 flex flex-col">
+                <main className="p-4 md:p-10 flex-1 flex flex-col">
                     <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col">
                         {/* Inputs Grid */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10 items-stretch">

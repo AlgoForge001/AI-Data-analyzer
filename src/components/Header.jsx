@@ -1,11 +1,17 @@
 import React from 'react';
-import { Search, Bell, Settings, User } from 'lucide-react';
+import { Search, Bell, Settings, User, Menu } from 'lucide-react';
 
-const Header = () => {
+const Header = ({ onMenuClick }) => {
     return (
-        <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#0b0f19]/80 backdrop-blur-sm sticky top-0 z-10">
-            <div className="flex-1 max-w-xl">
-                <div className="relative group">
+        <header className="h-16 border-b border-white/5 flex items-center justify-between px-4 lg:px-8 bg-[#0b0f19]/80 backdrop-blur-sm sticky top-0 z-10 w-full">
+            <div className="flex flex-1 max-w-xl items-center gap-2 lg:gap-0">
+                <button 
+                    onClick={onMenuClick}
+                    className="lg:hidden p-2 -ml-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all flex-shrink-0"
+                >
+                    <Menu size={24} />
+                </button>
+                <div className="relative group flex-1">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#00C6FF] transition-colors" size={18} />
                     <input
                         type="text"
