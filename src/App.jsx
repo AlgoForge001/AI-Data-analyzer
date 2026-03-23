@@ -33,9 +33,7 @@ function App() {
         formData.append('query', prompt);
 
         try {
-            const isDev = import.meta.env.DEV;
-            const apiUrl = isDev ? '/api' : (import.meta.env.VITE_API_URL || 'https://fastapi-jts6.onrender.com');
-            const response = await fetch(`${apiUrl}/generate-code`, {
+            const response = await fetch('/api/generate-code', {
                 method: 'POST',
                 body: formData,
             });

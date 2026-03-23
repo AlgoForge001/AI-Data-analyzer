@@ -1,44 +1,15 @@
-import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { BarChart2, PieChart, TrendingUp, Info, Code2, Copy, Check, FileJson, ImageIcon } from 'lucide-react';
+import React, { useState } from 'react';
+import Plot from "react-plotly.js";
+import { TrendingUp, Copy, Check, FileJson, Maximize2, X, BarChart2, Download } from 'lucide-react';
 
 const AnalysisOutput = ({ data, loading }) => {
-    const [copied, setCopied] = React.useState(false);
+    const [copied, setCopied] = useState(false);
+    const [fullscreenChart, setFullscreenChart] = useState(null);
 
-    if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center p-20 animate-pulse text-slate-500">
-                <div className="relative mb-8">
-                    <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full"></div>
-                    <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] relative">
-                        <TrendingUp size={64} className="animate-bounce" />
-                    </div>
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-2">Analyzing your dataset...</h3>
-                <p className="text-slate-400">Consulting AI for advanced insights</p>
-            </div>
-        );
-    }
-
-    if (!data) {
-        return (
-            <div className="h-full flex flex-col items-center justify-center p-12 text-center">
-                <div className="grid grid-cols-3 gap-8 opacity-10 mb-8">
-                    <BarChart2 size={48} className="text-slate-300" />
-                    <PieChart size={48} className="text-slate-300" />
-                    <TrendingUp size={48} className="text-slate-300" />
-                </div>
-                <h3 className="text-xl font-semibold text-slate-500 mb-2">Analysis Results Area</h3>
-                <p className="text-slate-600 max-w-sm mb-6">
-                    Upload a file and enter a prompt to see intelligent insights and visualizations here.
-                </p>
-                <div className="flex items-center gap-2 px-4 py-2 bg-white/5 text-slate-500 rounded-full text-xs font-bold uppercase tracking-widest border border-white/5">
-                    <Info size={14} />
-                    Standby for Input
-                </div>
-            </div>
-        );
-    }
+    const hasCharts = data?.charts && Array.isArray(data.charts) && data.charts.length > 0;
+    const hasText = data?.type === 'text' && data?.content;
+    const hasCode = data?.generated_code;
+    const hasTables = data?.tables && Array.isArray(data.tables) && data.tables.length > 0;
 
     const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text);
@@ -46,156 +17,271 @@ const AnalysisOutput = ({ data, loading }) => {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    // Determine response type
-    const hasCharts = data.charts && Array.isArray(data.charts) && data.charts.length > 0;
-    const hasSingleImage = data.type === 'chart' && data.image && typeof data.image === 'string';
-    const hasImages = data.type === 'chart' && data.images && data.images.length > 0;
-    const hasText = data.type === 'text' && data.content;
-    const hasCode = data.generated_code;
-    const hasChartData = data.chart_data && Array.isArray(data.chart_data);
+    const downloadCSV = (tableData, filename = "table.csv") => {
+        if (!tableData || tableData.length === 0) return;
+
+        const headers = Object.keys(tableData[0]);
+
+        const csvRows = [
+            headers.join(","), // header row
+            ...tableData.map(row =>
+                headers.map(field => `"${row[field] ?? ""}"`).join(",")
+            )
+        ];
+
+        const csvContent = csvRows.join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // ===== LOADING =====
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full p-20 animate-pulse text-slate-500">
+                <div className="mb-6">
+                    <TrendingUp size={60} className="animate-bounce text-blue-500/50" />
+                </div>
+                <h3 className="text-xl text-white font-bold mb-2">Analyzing your dataset...</h3>
+                <p className="text-slate-400">Generating interactive charts</p>
+            </div>
+        );
+    }
+
+    // ===== EMPTY =====
+    if (!data) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center text-center p-10">
+                <div className="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-6 border border-slate-700">
+                    <BarChart2 size={32} className="text-slate-500" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-300 mb-2">No Analysis Yet</h3>
+                <p className="text-slate-500 max-w-sm">
+                    Upload your data file and enter a prompt to generate insights and charts
+                </p>
+            </div>
+        );
+    }
 
     return (
-        <div className="h-full flex flex-col p-8 overflow-y-auto custom-scrollbar">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500 border border-blue-500/20">
-                        {hasText ? <Info size={24} /> : hasCharts || hasSingleImage || hasImages ? <ImageIcon size={24} /> : <BarChart2 size={24} />}
+        <div className="h-full p-4 lg:p-6 overflow-y-auto flex flex-col bg-[#0f172a]/95">
+
+            {/* ===== HEADER ===== */}
+            <div className="flex justify-between items-center mb-4 lg:mb-6 shrink-0">
+                <h2 className="text-lg lg:text-xl font-bold text-white flex items-center gap-2">
+                    <div className="p-1.5 lg:p-2 bg-blue-500/10 rounded-lg">
+                        <BarChart2 className="text-blue-400" size={20} />
                     </div>
-                    <div>
-                        <h2 className="text-xl font-black text-white">
-                            {hasText ? 'Analysis Result' : hasCharts || hasSingleImage || hasImages ? 'Chart Visualization' : 'Insight Generation'}
-                        </h2>
-                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">AI Analysis Result</p>
-                    </div>
-                </div>
+                    Analytics Dashboard
+                </h2>
 
                 {hasCode && (
                     <button
                         onClick={() => copyToClipboard(hasCode)}
-                        className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl transition-all text-slate-400 hover:text-white text-sm font-medium border border-white/5"
+                        className="flex items-center gap-2 px-3 lg:px-4 py-1.5 lg:py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm border border-slate-700 transition-all shadow-sm"
                     >
-                        {copied ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
-                        {copied ? 'Copied' : 'Copy Code'}
+                        {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} className="text-slate-400" />}
+                        {copied ? <span className="text-green-400 font-medium">Copied</span> : <span className="text-slate-200">Copy Code</span>}
                     </button>
                 )}
             </div>
 
-            {/* ===== CASE 0: Charts array (data.charts with filename + image_base64) ===== */}
+            {/* ===== CHARTS ===== */}
             {hasCharts && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                    {data.charts.map((chart, index) => (
-                        <div key={index} className="bg-[#1a2333]/40 rounded-3xl border border-white/5 p-4 overflow-hidden">
-                            {chart.filename && (
-                                <p className="text-sm text-slate-400 font-semibold mb-3 px-2">{chart.filename}</p>
-                            )}
-                            <img
-                                src={`data:image/png;base64,${chart.image_base64}`}
-                                alt={chart.filename || `Chart ${index + 1}`}
-                                className="w-full rounded-2xl"
-                            />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4 shrink-0 mb-6">
+                    {data.charts.map((chart, index) => {
+                        const title = chart.layout?.title?.text || chart.layout?.title || `Dynamic Chart ${index + 1}`;
+                        
+                        // Optimize layout for grid cards to save space
+                        const optimizedLayout = {
+                            ...chart.layout,
+                            title: null, 
+                            autosize: true,
+                            margin: { l: 40, r: 15, t: 15, b: 35 }, 
+                            paper_bgcolor: 'transparent',
+                            plot_bgcolor: 'transparent',
+                            font: { color: '#94a3b8', size: 10 }
+                        };
+
+                        return (
+                            <div
+                                key={index}
+                                className="group relative flex flex-col bg-[#1e293b]/90 hover:bg-[#1e293b] border border-slate-700/60 hover:border-blue-500/40 rounded-xl shadow-lg hover:shadow-blue-500/5 transition-all duration-300 overflow-hidden h-[280px] lg:h-[calc((100vh-220px)/2)] lg:min-h-[220px]" 
+                            >
+                                {/* Compact Card Header */}
+                                <div className="flex justify-between items-center px-3 py-2 border-b border-slate-700/50 bg-slate-800/40 shrink-0">
+                                    <div className="flex items-center gap-2 overflow-hidden mr-2">
+                                        <div className="p-1 bg-blue-500/10 rounded border border-blue-500/20">
+                                            <TrendingUp size={12} className="text-blue-400" />
+                                        </div>
+                                        <h3 className="text-xs font-semibold text-slate-200 truncate" title={typeof title === 'string' ? title : ''}>
+                                            {typeof title === 'string' ? title : `Chart ${index + 1}`}
+                                        </h3>
+                                    </div>
+                                    <button 
+                                        onClick={() => setFullscreenChart(chart)}
+                                        className="text-slate-400 hover:text-white transition-colors p-1.5 lg:opacity-0 group-hover:opacity-100 rounded-md hover:bg-slate-700 shrink-0"
+                                        title="View Fullscreen"
+                                    >
+                                        <Maximize2 size={14} />
+                                    </button>
+                                </div>
+                                
+                                {/* Chart Area */}
+                                <div className="flex-1 w-full p-1 relative min-h-0 bg-gradient-to-b from-transparent to-slate-900/20">
+                                    <Plot
+                                        data={chart.data}
+                                        layout={optimizedLayout}
+                                        config={{
+                                            responsive: true,
+                                            displayModeBar: false
+                                        }}
+                                        style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0 }}
+                                        useResizeHandler={true}
+                                    />
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* ===== TABLES ===== */}
+            {hasTables && (
+                <div className="space-y-4 shrink-0 mb-6">
+                    {data.tables.map((table, index) => (
+                        <div
+                            key={index}
+                            className="bg-[#1e293b]/90 rounded-xl border border-slate-700/60 shadow-lg overflow-hidden flex flex-col max-h-[400px]"
+                        >
+                            <div className="flex justify-between items-center px-4 py-3 border-b border-slate-700/50 bg-slate-800/40 shrink-0">
+                                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                                    <FileJson size={14} className="text-blue-400" />
+                                    {table.title || "Data Table"}
+                                </h3>
+                                <button 
+                                    onClick={() => downloadCSV(table.data, `${table.title || "table"}.csv`)}
+                                    className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 rounded-lg transition-colors"
+                                >
+                                    <Download size={12} />
+                                    Export CSV
+                                </button>
+                            </div>
+
+                            <div className="overflow-auto flex-1 p-0">
+                                <table className="min-w-full text-sm text-left">
+                                    <thead className="sticky top-0 bg-slate-800/90 backdrop-blur shadow-sm z-10">
+                                        <tr>
+                                            {Object.keys(table.data[0] || {}).map((col, i) => (
+                                                <th
+                                                    key={i}
+                                                    className="px-4 py-2.5 border-b border-slate-700 font-medium text-slate-300 whitespace-nowrap"
+                                                >
+                                                    {col}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+
+                                    <tbody className="divide-y divide-slate-700/50">
+                                        {table.data.map((row, rIdx) => (
+                                            <tr
+                                                key={rIdx}
+                                                className="hover:bg-slate-800/50 transition-colors"
+                                            >
+                                                {Object.values(row).map((val, cIdx) => (
+                                                    <td
+                                                        key={cIdx}
+                                                        className="px-4 py-2 text-slate-400 whitespace-nowrap"
+                                                    >
+                                                        {typeof val === "number"
+                                                            ? val.toLocaleString()
+                                                            : val}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* ===== CASE 1A: Single Base64 Chart Image (data.image) ===== */}
-            {!hasCharts && hasSingleImage && (
-                <div className="flex flex-col gap-8 mb-8">
-                    <div className="bg-[#1a2333]/40 rounded-3xl border border-white/5 p-4 overflow-hidden">
-                        <img
-                            src={`data:image/png;base64,${data.image}`}
-                            alt="Chart"
-                            className="w-full rounded-2xl"
-                        />
-                    </div>
-                </div>
-            )}
-
-            {/* ===== CASE 1B: Multiple Base64 Chart Images (data.images array) ===== */}
-            {!hasCharts && !hasSingleImage && hasImages && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                    {data.images.map((img, index) => (
-                        <div key={index} className="bg-[#1a2333]/40 rounded-3xl border border-white/5 p-4 overflow-hidden">
-                            <img
-                                src={`data:image/png;base64,${img}`}
-                                alt={`Chart ${index + 1}`}
-                                className="w-full rounded-2xl"
-                            />
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* ===== CASE 2: Text Response ===== */}
+            {/* ===== TEXT ===== */}
             {!hasCharts && hasText && (
-                <div className="flex-1 bg-[#1a2333]/30 rounded-3xl border border-white/5 p-8">
-                    <p className="text-slate-300 leading-relaxed whitespace-pre-wrap text-base">
-                        {data.content}
-                    </p>
+                <div className="bg-[#1e293b]/90 border border-slate-700/60 rounded-xl p-6 text-slate-300 whitespace-pre-wrap shadow-lg shrink-0">
+                    {data.content}
                 </div>
             )}
 
-            {/* ===== CASE 3: JSON Chart Data (Recharts) ===== */}
-            {!hasCharts && !hasSingleImage && !hasImages && !hasText && hasChartData && (
-                <div className="mb-10 w-full h-[400px] bg-[#1a2333]/30 rounded-3xl border border-white/5 p-6">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={data.chart_data}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                            <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                            <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                            <Tooltip contentStyle={{
-                                backgroundColor: '#1a2333',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: '12px', color: '#fff'
-                            }} />
-                            <Bar dataKey="value" fill="url(#colorGradient)" radius={[6, 6, 0, 0]} />
-                            <defs>
-                                <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#3b82f6" />
-                                    <stop offset="100%" stopColor="#8b5cf6" />
-                                </linearGradient>
-                            </defs>
-                        </BarChart>
-                    </ResponsiveContainer>
+            {/* ===== CODE ===== */}
+            {!hasCharts && !hasText && hasCode && (
+                <div className="bg-[#0f172a] border border-slate-700/60 rounded-xl p-5 text-sm text-blue-400 font-mono whitespace-pre-wrap shadow-lg overflow-x-auto shrink-0">
+                    {hasCode}
                 </div>
             )}
 
-            {/* ===== CASE 4: Generated Code (Fallback) ===== */}
-            {!hasCharts && !hasSingleImage && !hasImages && !hasText && !hasChartData && hasCode && (
-                <div className="flex-1 flex flex-col gap-4">
-                    <div className="flex items-center gap-2 text-slate-400 mb-2">
-                        <Code2 size={18} />
-                        <span className="text-sm font-bold uppercase tracking-wide">Generated Python Code</span>
-                    </div>
-                    <div className="flex-1 bg-[#05070a]/80 backdrop-blur-xl border border-white/10 rounded-3xl p-6 relative group">
-                        <pre className="text-blue-400 font-mono text-sm leading-relaxed whitespace-pre-wrap">
-                            <code>{hasCode}</code>
-                        </pre>
-                        <div className="absolute top-4 right-4 text-xs text-slate-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                            python
+            {/* ===== FALLBACK ===== */}
+            {!hasCharts && !hasTables && !hasText && !hasCode && (
+                <div className="flex flex-col items-center justify-center p-12 text-slate-500 border border-dashed border-slate-700 rounded-xl bg-slate-800/20">
+                    <FileJson size={40} className="mb-4 text-slate-600" />
+                    <p className="font-medium">No valid output to display</p>
+                </div>
+            )}
+
+            {/* ===== FULLSCREEN CHART MODAL ===== */}
+            {fullscreenChart && (
+                <div className="fixed inset-0 z-50 bg-[#0f172a]/90 backdrop-blur-md flex items-center justify-center p-4 lg:p-8">
+                    <div 
+                        className="bg-[#1e293b] w-full h-full max-w-7xl max-h-[95vh] rounded-2xl shadow-2xl border border-slate-700 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                    >
+                        {/* Modal Header */}
+                        <div className="flex justify-between items-center px-5 py-4 border-b border-slate-700/80 bg-slate-800/80">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                                    <TrendingUp className="text-blue-400" size={20} />
+                                </div>
+                                <h3 className="text-lg font-bold text-white">
+                                    {typeof fullscreenChart.layout?.title === 'string' 
+                                        ? fullscreenChart.layout.title 
+                                        : fullscreenChart.layout?.title?.text || "Expanded Insight"}
+                                </h3>
+                            </div>
+                            <button 
+                                onClick={() => setFullscreenChart(null)}
+                                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-all"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        
+                        {/* Modal Chart Area */}
+                        <div className="flex-1 w-full p-4 relative min-h-0 bg-gradient-to-b from-[#1e293b] to-[#0f172a]/50">
+                            <Plot
+                                data={fullscreenChart.data}
+                                layout={{
+                                    ...fullscreenChart.layout,
+                                    title: null,
+                                    autosize: true,
+                                    paper_bgcolor: 'transparent',
+                                    plot_bgcolor: 'transparent',
+                                    font: { color: '#e2e8f0' }
+                                }}
+                                config={{ responsive: true, displayModeBar: true }}
+                                style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0 }}
+                                useResizeHandler={true}
+                            />
                         </div>
                     </div>
-                    {data.execution_error && (
-                        <div className="mt-2 p-3 bg-yellow-500/5 rounded-xl border border-yellow-500/10 flex items-start gap-3">
-                            <Info size={16} className="text-yellow-500 shrink-0 mt-0.5" />
-                            <p className="text-xs text-yellow-400">Execution note: {data.execution_error}</p>
-                        </div>
-                    )}
-                    <div className="mt-4 p-4 bg-blue-500/5 rounded-2xl border border-blue-500/10 flex items-start gap-3">
-                        <Info size={18} className="text-blue-500 shrink-0 mt-0.5" />
-                        <p className="text-sm text-slate-400 leading-relaxed">
-                            The AI has generated Python code. You can copy and run it in a Jupyter Notebook or Python environment.
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            {/* ===== CASE 5: Unknown Format ===== */}
-            {!hasCharts && !hasSingleImage && !hasImages && !hasText && !hasChartData && !hasCode && (
-                <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-3xl bg-white/[0.01]">
-                    <FileJson size={40} className="text-slate-700 mb-4" />
-                    <p className="text-slate-500 font-medium">No visualization available for this response.</p>
                 </div>
             )}
         </div>
