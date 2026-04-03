@@ -1,2 +1,9 @@
+<<<<<<< HEAD
 node_modules
 .env
+=======
+.env
+.venv
+*.pyc
+__pycache__/
+>>>>>>> friend/main
