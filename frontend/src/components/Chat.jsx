@@ -82,8 +82,8 @@ const Chat = ({ datasetId, onClose, initialSummary }) => {
       {/* Chat Header */}
       <div className="px-6 py-5 border-b border-anthropic-border-cream bg-anthropic-warm-sand/20 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-anthropic-terracotta/10 flex items-center justify-center border border-anthropic-terracotta/20">
-            <Sparkles size={18} className="text-anthropic-terracotta" />
+          <div className="flex items-center justify-center">
+            <Sparkles size={22} className="text-anthropic-terracotta" />
           </div>
           <div>
             <h3 className="text-body-nav font-medium text-anthropic-near-black">
@@ -126,13 +126,13 @@ const Chat = ({ datasetId, onClose, initialSummary }) => {
               className={`flex gap-3 max-w-[92%] ${msg.role === "user" ? "flex-row-reverse" : ""}`}
             >
               <div
-                className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center border ${
+                className={`flex-shrink-0 flex items-center justify-center mt-1 ${
                   msg.role === "user"
-                    ? "bg-anthropic-charcoal-warm/10 border-anthropic-charcoal-warm/20 text-anthropic-charcoal-warm"
-                    : "bg-anthropic-terracotta/10 border-anthropic-terracotta/20 text-anthropic-terracotta"
+                    ? "text-anthropic-stone-gray"
+                    : "text-anthropic-terracotta"
                 }`}
               >
-                {msg.role === "user" ? <User size={14} /> : <Bot size={14} />}
+                {msg.role === "user" ? <User size={16} /> : <Bot size={18} />}
               </div>
               <div
                 className={`group relative p-4 rounded-2xl text-body-sm leading-relaxed shadow-sm ${
@@ -200,8 +200,8 @@ const Chat = ({ datasetId, onClose, initialSummary }) => {
 
         {loading && (
           <div className="flex gap-3 animate-fade-in">
-            <div className="w-8 h-8 rounded-full bg-anthropic-terracotta/10 border border-anthropic-terracotta/20 flex items-center justify-center text-anthropic-terracotta">
-              <Bot size={14} className="animate-pulse" />
+            <div className="flex-shrink-0 flex items-center justify-center mt-1 text-anthropic-terracotta">
+              <Bot size={18} className="animate-pulse" />
             </div>
             <div className="bg-anthropic-warm-sand/30 border border-anthropic-border-cream p-4 rounded-2xl rounded-tl-sm flex items-center gap-2">
               <Loader2
