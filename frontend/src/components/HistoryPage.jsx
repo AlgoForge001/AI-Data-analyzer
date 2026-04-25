@@ -104,25 +104,25 @@ const HistoryPage = ({ history = [], onHistoryItemClick, onDeleteHistoryItem }) 
               <div
                 key={item.task_id}
                 onClick={() => onHistoryItemClick(item.task_id)}
-                className="glass-card flex items-center gap-5 p-5 cursor-pointer group animate-fade-in-up hover:translate-x-1"
+                className="glass-card flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 p-4 sm:p-5 cursor-pointer group animate-fade-in-up hover:translate-x-1 relative"
                 style={{ animationDelay: `${idx * 40}ms` }}
               >
                 <div
-                  className={`w-11 h-11 rounded-xl ${config.bg} border ${config.border} flex items-center justify-center shrink-0`}
+                  className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl ${config.bg} border ${config.border} flex items-center justify-center shrink-0`}
                 >
-                  <StatusIcon size={18} className={config.color} />
+                  <StatusIcon size={16} className={`${config.color} sm:w-[18px] sm:h-[18px]`} />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-feature text-anthropic-near-black truncate group-hover:text-anthropic-focus transition-colors">
+                <div className="flex-1 min-w-0 w-full pr-8 sm:pr-0">
+                  <p className="text-feature text-anthropic-near-black truncate group-hover:text-anthropic-focus transition-colors line-clamp-2 sm:line-clamp-1 whitespace-normal sm:whitespace-nowrap">
                     {item.query || "Untitled Analysis"}
                   </p>
-                  <div className="flex items-center gap-5 mt-1.5">
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-5 mt-1.5">
                     {item.filename && (
-                      <span className="flex items-center gap-2 text-label text-anthropic-stone-gray uppercase tracking-wider font-medium">
-                        <FileText size={12} /> {item.filename}
+                      <span className="flex items-center gap-1 sm:gap-2 text-label text-anthropic-stone-gray uppercase tracking-wider font-medium truncate max-w-full">
+                        <FileText size={12} className="shrink-0" /> <span className="truncate">{item.filename}</span>
                       </span>
                     )}
-                    <span className="flex items-center gap-2 text-label text-anthropic-stone-gray uppercase tracking-wider font-medium">
+                    <span className="flex items-center gap-1 sm:gap-2 text-label text-anthropic-stone-gray uppercase tracking-wider font-medium shrink-0">
                       <Clock size={12} />
                       {item.created_at
                         ? new Date(item.created_at).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })
@@ -130,18 +130,20 @@ const HistoryPage = ({ history = [], onHistoryItemClick, onDeleteHistoryItem }) 
                     </span>
                   </div>
                 </div>
-                <span
-                  className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${config.bg} ${config.color} ${config.border}`}
-                >
-                  {item.status || "unknown"}
-                </span>
-                <button
-                  onClick={(e) => onDeleteHistoryItem && onDeleteHistoryItem(item.task_id, e)}
-                  className="opacity-0 group-hover:opacity-100 p-2 text-anthropic-stone-gray hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-                  title="Delete Analysis"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-3 mt-2 sm:mt-0">
+                  <span
+                    className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${config.bg} ${config.color} ${config.border}`}
+                  >
+                    {item.status || "unknown"}
+                  </span>
+                  <button
+                    onClick={(e) => onDeleteHistoryItem && onDeleteHistoryItem(item.task_id, e)}
+                    className="sm:opacity-0 sm:group-hover:opacity-100 p-2 text-anthropic-stone-gray hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all absolute sm:relative top-2 sm:top-auto right-2 sm:right-auto"
+                    title="Delete Analysis"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
             );
           })

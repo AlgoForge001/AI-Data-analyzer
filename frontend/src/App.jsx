@@ -331,22 +331,22 @@ function App() {
                 
                 {/* Left Side: Welcome or Results */}
                 <div 
-                  className={`flex flex-col overflow-hidden ${isResizing ? '' : 'transition-all duration-500 ease-in-out'}`} 
-                  style={{ width: currentView === 'result' && showChat ? `${splitRatio}%` : '100%' }}
+                  className={`flex-col overflow-hidden ${isResizing ? '' : 'transition-all duration-500 ease-in-out'} ${showChat && currentView === 'result' ? 'hidden lg:flex' : 'flex'} w-full lg:w-auto`} 
+                  style={{ '--split-width': currentView === 'result' && showChat ? `${splitRatio}%` : '100%', width: 'var(--split-width)' }}
                 >
                   
                   {/* Initial Welcome State */}
                   {currentView === 'new' && (
-                    <div className="flex-1 flex flex-col items-center justify-center p-12 text-center animate-fade-in">
+                    <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 text-center animate-fade-in">
                       {/* Logo placeholder - User will provide logo later */}
-                      <h1 className="text-[2.5rem] font-serif text-anthropic-near-black mb-4 tracking-tight">
+                      <h1 className="text-[2rem] md:text-[2.5rem] font-serif text-anthropic-near-black mb-4 tracking-tight">
                         How can I help with your data?
                       </h1>
-                      <p className="text-anthropic-stone-gray max-w-md text-body-std leading-relaxed">
+                      <p className="text-anthropic-stone-gray max-w-md text-sm md:text-body-std leading-relaxed">
                         Upload a dataset and describe the analysis you need. I'll generate insights, visualizations, and a summary for you.
                       </p>
                       
-                      <div className="mt-12 grid grid-cols-2 gap-4 max-w-2xl w-full">
+                      <div className="mt-8 md:mt-12 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl w-full">
                         <div className="p-6 bg-white border border-anthropic-border-cream rounded-2xl text-left hover:border-anthropic-border-warm transition-all cursor-pointer group">
                           <div className="w-10 h-10 bg-anthropic-warm-sand/50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                             <Sparkles size={20} className="text-anthropic-terracotta" />
@@ -369,33 +369,33 @@ function App() {
                   {currentView === 'result' && (
                     <div className="flex-1 flex flex-col min-h-0 bg-white">
                       {/* Analysis Meta Header - Integrated */}
-                      <div className="px-8 py-4 border-b border-anthropic-border-cream flex items-center justify-between shrink-0 bg-anthropic-ivory/50">
-                        <div className="flex items-center gap-4">
-                          <h2 className="text-feature !text-[1rem] font-serif truncate max-w-md">
+                      <div className="px-4 sm:px-8 py-4 border-b border-anthropic-border-cream flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 bg-anthropic-ivory/50">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                          <h2 className="text-feature !text-[1rem] font-serif line-clamp-2 md:truncate max-w-md">
                             {viewingHistoryItem?.query || prompt}
                           </h2>
-                          <div className="flex items-center gap-2 text-anthropic-stone-gray text-[10px] uppercase tracking-wider">
-                            <span className="px-1.5 py-0.5 bg-anthropic-warm-sand/30 rounded border border-anthropic-border-cream">
+                          <div className="flex items-center gap-2 text-anthropic-stone-gray text-[10px] uppercase tracking-wider shrink-0">
+                            <span className="px-1.5 py-0.5 bg-anthropic-warm-sand/30 rounded border border-anthropic-border-cream truncate max-w-[150px]">
                               {viewingHistoryItem?.filename || file?.name}
                             </span>
                           </div>
                         </div>
                         
                         {/* Right Side Actions */}
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center flex-wrap gap-3">
                           {!showChat && analysisData && !loading && (
                             <button
                               onClick={() => setShowChat(true)}
-                              className="flex items-center gap-2 px-3 py-1.5 bg-anthropic-warm-sand text-anthropic-near-black border border-anthropic-border-warm rounded-lg text-[11px] font-bold uppercase tracking-tight hover:bg-anthropic-warm-sand/50 transition-all shadow-sm"
+                              className="flex items-center gap-2 px-3 py-1.5 bg-anthropic-warm-sand text-anthropic-near-black border border-anthropic-border-warm rounded-lg text-[11px] font-bold uppercase tracking-tight hover:bg-anthropic-warm-sand/50 transition-all shadow-sm shrink-0"
                             >
-                              <Sparkles size={14} className="text-anthropic-terracotta" />
-                              Open Assistant
+                              <Sparkles size={14} className="text-anthropic-terracotta shrink-0" />
+                              <span className="whitespace-nowrap">Open Assistant</span>
                             </button>
                           )}
 
                           {/* Result Tabs */}
                           {analysisData && !loading && (
-                            <div className="flex items-center gap-1 bg-white/80 rounded-lg p-0.5 border border-anthropic-border-cream">
+                            <div className="flex items-center gap-1 bg-white/80 rounded-lg p-0.5 border border-anthropic-border-cream shrink-0">
                               {['charts', 'raw'].map(tab => (
                                 <button
                                   key={tab}
@@ -421,7 +421,7 @@ function App() {
                 {showChat && currentView === 'result' && !loading && (
                   <div 
                     onMouseDown={handleMouseDown}
-                    className={`w-1 hover:w-1.5 bg-anthropic-border-cream hover:bg-anthropic-terracotta/40 transition-all cursor-col-resize flex items-center justify-center relative group z-10 ${isResizing ? 'bg-anthropic-terracotta/40 w-1.5' : ''}`}
+                    className={`hidden lg:flex w-1 hover:w-1.5 bg-anthropic-border-cream hover:bg-anthropic-terracotta/40 transition-all cursor-col-resize items-center justify-center relative group z-10 ${isResizing ? 'bg-anthropic-terracotta/40 w-1.5' : ''}`}
                   >
                     <div className={`absolute top-1/2 -translate-y-1/2 flex items-center justify-center gap-0.5 px-1 py-4 bg-white border border-anthropic-border-cream rounded-full shadow-sm transition-all ${isResizing ? 'scale-110 shadow-md border-anthropic-terracotta/30' : 'opacity-0 group-hover:opacity-100'}`}>
                       <div className="flex flex-col gap-1">
@@ -441,8 +441,8 @@ function App() {
                 {/* Right Side: Chat Column */}
                 {showChat && currentView === 'result' && !loading && (
                   <div 
-                    className={`bg-anthropic-ivory/50 flex flex-col animate-fade-in min-h-0 overflow-hidden`}
-                    style={{ width: `${100 - splitRatio}%` }}
+                    className={`bg-anthropic-ivory/50 flex flex-col animate-fade-in min-h-0 overflow-hidden w-full lg:w-auto`}
+                    style={{ '--chat-width': `${100 - splitRatio}%`, width: 'var(--chat-width)' }}
                   >
                     <Chat 
                       datasetId={datasetId} 

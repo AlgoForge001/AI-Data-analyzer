@@ -180,10 +180,10 @@ const AnalyticsPage = ({ history = [] }) => {
                 <span className="text-body-sm text-anthropic-olive-gray flex-1">
                   {label}
                 </span>
-                <span className="text-body-sm font-bold text-anthropic-near-black">
+                <span className="text-body-sm font-bold text-anthropic-near-black w-8 text-right">
                   {count}
                 </span>
-                <div className="w-32 h-2 rounded-full bg-[var(--bg-input)] overflow-hidden border border-anthropic-border-cream">
+                <div className="flex-1 max-w-[120px] sm:max-w-[160px] h-2 rounded-full bg-[var(--bg-input)] overflow-hidden border border-anthropic-border-cream">
                   <div
                     className="h-full rounded-full transition-all duration-700 ease-out"
                     style={{
@@ -235,15 +235,15 @@ const AnalyticsPage = ({ history = [] }) => {
                   <div className="p-1.5 bg-[var(--bg-input)] rounded-lg group-hover:bg-[var(--bg-input)] transition-colors">
                     <FileText size={14} className="text-anthropic-stone-gray" />
                   </div>
-                  <span className="text-body-sm text-anthropic-olive-gray flex-1 truncate">
+                  <span className="text-body-sm text-anthropic-olive-gray flex-1 truncate pr-2">
                     {name}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-0.5 sm:gap-2 shrink-0">
                     <span className="text-label font-bold text-anthropic-near-black">
                       {count}
                     </span>
-                    <span className="text-overline text-anthropic-stone-gray">
-                      Executions
+                    <span className="text-[9px] sm:text-overline text-anthropic-stone-gray uppercase">
+                      Execs
                     </span>
                   </div>
                 </div>

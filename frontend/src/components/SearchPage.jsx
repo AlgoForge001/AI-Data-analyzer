@@ -85,27 +85,27 @@ const SearchPage = ({ history = [], onHistoryItemClick }) => {
             <div
               key={item.task_id}
               onClick={() => onHistoryItemClick(item.task_id)}
-              className="glass-card flex items-center gap-6 p-6 cursor-pointer group animate-fade-in-up hover:translate-x-1"
+              className="glass-card flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 p-4 sm:p-6 cursor-pointer group animate-fade-in-up hover:translate-x-1"
               style={{ animationDelay: `${idx * 40}ms` }}
             >
-              <div className="w-14 h-14 rounded-2xl bg-[var(--bg-input)] flex items-center justify-center border border-anthropic-border-cream shrink-0 group-hover:bg-anthropic-terracotta/10 group-hover:border-anthropic-terracotta/20 transition-all">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[var(--bg-input)] flex items-center justify-center border border-anthropic-border-cream shrink-0 group-hover:bg-anthropic-terracotta/10 group-hover:border-anthropic-terracotta/20 transition-all">
                 <MessageSquare
-                  size={24}
-                  className="text-anthropic-stone-gray group-hover:text-anthropic-terracotta transition-colors"
+                  size={20}
+                  className="text-anthropic-stone-gray group-hover:text-anthropic-terracotta transition-colors sm:w-6 sm:h-6"
                 />
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-feature text-anthropic-near-black truncate mb-1.5">
+              <div className="flex-1 min-w-0 w-full">
+                <h3 className="text-feature text-anthropic-near-black truncate mb-1.5 line-clamp-2 sm:line-clamp-1 whitespace-normal sm:whitespace-nowrap">
                   {item.query || "Untitled Intelligence Query"}
                 </h3>
-                <div className="flex items-center gap-5">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-5">
                   {item.filename && (
-                    <span className="flex items-center gap-2 text-label text-anthropic-stone-gray uppercase tracking-wider font-medium">
-                      <FileText size={12} />
-                      {item.filename}
+                    <span className="flex items-center gap-2 text-label text-anthropic-stone-gray uppercase tracking-wider font-medium truncate max-w-full">
+                      <FileText size={12} className="shrink-0" />
+                      <span className="truncate">{item.filename}</span>
                     </span>
                   )}
-                  <span className="flex items-center gap-2 text-label text-anthropic-stone-gray uppercase tracking-wider font-medium">
+                  <span className="flex items-center gap-2 text-label text-anthropic-stone-gray uppercase tracking-wider font-medium shrink-0">
                     <Clock size={12} />
                     {item.created_at
                       ? new Date(item.created_at).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })
@@ -114,7 +114,7 @@ const SearchPage = ({ history = [], onHistoryItemClick }) => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
+              <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 mt-2 sm:mt-0">
                 <span
                   className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${
                     item.status === "completed"
