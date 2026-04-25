@@ -187,7 +187,7 @@ const AnalysisOutput = ({ data, loading, activeTab = "summary" }) => {
                 return (
                   <div
                     key={index}
-                    className="stat-card !p-0 overflow-hidden flex flex-col group min-h-[300px] min-w-0 w-full"
+                    className="stat-card !p-0 overflow-hidden flex flex-col group min-w-0 w-full"
                   >
                     <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-anthropic-border-cream flex items-center justify-between bg-anthropic-warm-sand/20">
                       <h3 className="text-[12px] sm:text-label font-bold text-anthropic-near-black truncate mr-2 w-full">
@@ -200,12 +200,12 @@ const AnalysisOutput = ({ data, loading, activeTab = "summary" }) => {
                         <Maximize2 size={14} />
                       </button>
                     </div>
-                    <div className="flex-1 w-full relative min-h-[250px] p-1 sm:p-2">
+                    <div className="w-full h-[300px] sm:h-[350px] p-1 sm:p-2">
                       <Plot
                         data={chart.data}
                         layout={optimizedLayout}
                         config={{ responsive: true, displayModeBar: false }}
-                        style={{ width: "100%", height: "100%", position: "absolute", inset: 0 }}
+                        style={{ width: "100%", height: "100%" }}
                         useResizeHandler={true}
                       />
                     </div>

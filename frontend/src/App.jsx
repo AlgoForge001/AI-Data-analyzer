@@ -332,7 +332,7 @@ function App() {
                 {/* Left Side: Welcome or Results */}
                 <div 
                   className={`flex-col overflow-hidden ${isResizing ? '' : 'transition-all duration-500 ease-in-out'} ${showChat && currentView === 'result' ? 'hidden lg:flex' : 'flex'} w-full lg:w-[var(--split-width)]`} 
-                  style={{ '--split-width': `${splitRatio}%` }}
+                  style={{ '--split-width': currentView === 'result' && showChat ? `${splitRatio}%` : '100%' }}
                 >
                   
                   {/* Initial Welcome State */}
