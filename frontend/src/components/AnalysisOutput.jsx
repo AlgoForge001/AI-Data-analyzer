@@ -145,8 +145,8 @@ const AnalysisOutput = ({ data, loading, activeTab = "summary" }) => {
 
       {/* ===== CHARTS VIEW ===== */}
       {activeTab === "charts" && (
-        <div className="p-8 animate-fade-in-up">
-          <div className="flex items-center gap-3 mb-8">
+        <div className="p-4 sm:p-8 animate-fade-in-up w-full">
+          <div className="flex items-center gap-3 mb-6 sm:mb-8">
             <div className="p-2 bg-anthropic-focus/10 text-anthropic-focus rounded-xl border border-anthropic-focus/20">
               <BarChart2 size={20} />
             </div>
@@ -154,7 +154,7 @@ const AnalysisOutput = ({ data, loading, activeTab = "summary" }) => {
           </div>
 
           {hasCharts ? (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
               {data.charts.map((chart, index) => {
                 const title =
                   chart.layout?.title?.text ||
@@ -165,7 +165,7 @@ const AnalysisOutput = ({ data, loading, activeTab = "summary" }) => {
                   ...chart.layout,
                   title: null,
                   autosize: true,
-                  margin: { l: 40, r: 15, t: 15, b: 35 },
+                  margin: { l: 30, r: 10, t: 15, b: 35 },
                   paper_bgcolor: "transparent",
                   plot_bgcolor: "transparent",
                   font: {
@@ -187,31 +187,31 @@ const AnalysisOutput = ({ data, loading, activeTab = "summary" }) => {
                 return (
                   <div
                     key={index}
-                    className="stat-card !p-0 overflow-hidden flex flex-col group min-h-[320px]"
+                    className="stat-card !p-0 overflow-hidden flex flex-col group min-h-[300px] min-w-0 w-full"
                   >
-                    <div className="px-4 py-3 border-b border-anthropic-border-cream flex items-center justify-between bg-anthropic-warm-sand/20">
-                      <h3 className="text-label font-bold text-anthropic-near-black truncate mr-2">
+                    <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-anthropic-border-cream flex items-center justify-between bg-anthropic-warm-sand/20">
+                      <h3 className="text-[12px] sm:text-label font-bold text-anthropic-near-black truncate mr-2 w-full">
                         {title}
                       </h3>
                       <button
                         onClick={() => setFullscreenChart(chart)}
-                        className="p-1.5 text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                        className="p-1 sm:p-1.5 text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0"
                       >
                         <Maximize2 size={14} />
                       </button>
                     </div>
-                    <div className="flex-1 w-full p-2 relative">
+                    <div className="flex-1 w-full relative min-h-[250px] p-1 sm:p-2">
                       <Plot
                         data={chart.data}
                         layout={optimizedLayout}
                         config={{ responsive: true, displayModeBar: false }}
-                        style={{ width: "100%", height: "100%" }}
+                        style={{ width: "100%", height: "100%", position: "absolute", inset: 0 }}
                         useResizeHandler={true}
                       />
                     </div>
                     {chart.insight && (
-                      <div className="px-4 py-3 bg-white border-t border-anthropic-border-cream/50">
-                        <p className="text-[11px] leading-relaxed text-anthropic-charcoal-warm font-sans italic">
+                      <div className="px-3 sm:px-4 py-2 sm:py-3 bg-white border-t border-anthropic-border-cream/50">
+                        <p className="text-[10px] sm:text-[11px] leading-relaxed text-anthropic-charcoal-warm font-sans italic line-clamp-3 sm:line-clamp-none">
                           <span className="font-bold text-anthropic-terracotta mr-1.5 not-italic tracking-wider uppercase text-[9px]">Insight:</span>
                           {chart.insight}
                         </p>
@@ -222,9 +222,9 @@ const AnalysisOutput = ({ data, loading, activeTab = "summary" }) => {
               })}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-anthropic-stone-gray">
+            <div className="flex flex-col items-center justify-center py-20 text-anthropic-stone-gray w-full">
               <BarChart2 size={48} className="mb-4 opacity-20" />
-              <p className="text-body-std">
+              <p className="text-body-std text-center">
                 No charts were generated for this prompt.
               </p>
             </div>
