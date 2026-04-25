@@ -11,7 +11,7 @@ import SettingsPage from './components/SettingsPage';
 import UserProfilePage from './components/UserProfilePage';
 import { Zap, Loader2, AlertCircle, PanelRightOpen, Database, Sparkles, X } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || "https://javax.onrender.com";
 const POLL_INTERVAL_MS = 2000;
 
 const PAGE_TITLES = {
