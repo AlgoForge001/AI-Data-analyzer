@@ -331,8 +331,8 @@ function App() {
                 
                 {/* Left Side: Welcome or Results */}
                 <div 
-                  className={`flex-col overflow-hidden ${isResizing ? '' : 'transition-all duration-500 ease-in-out'} ${showChat && currentView === 'result' ? 'hidden lg:flex' : 'flex'} w-full lg:w-auto`} 
-                  style={{ '--split-width': currentView === 'result' && showChat ? `${splitRatio}%` : '100%', width: 'var(--split-width)' }}
+                  className={`flex-col overflow-hidden ${isResizing ? '' : 'transition-all duration-500 ease-in-out'} ${showChat && currentView === 'result' ? 'hidden lg:flex' : 'flex'} w-full lg:w-[var(--split-width)]`} 
+                  style={{ '--split-width': `${splitRatio}%` }}
                 >
                   
                   {/* Initial Welcome State */}
@@ -441,8 +441,8 @@ function App() {
                 {/* Right Side: Chat Column */}
                 {showChat && currentView === 'result' && !loading && (
                   <div 
-                    className={`bg-anthropic-ivory/50 flex flex-col animate-fade-in min-h-0 overflow-hidden w-full lg:w-auto`}
-                    style={{ '--chat-width': `${100 - splitRatio}%`, width: 'var(--chat-width)' }}
+                    className={`bg-anthropic-ivory/50 flex flex-col animate-fade-in min-h-0 overflow-hidden w-full lg:w-[var(--chat-width)]`}
+                    style={{ '--chat-width': `${100 - splitRatio}%` }}
                   >
                     <Chat 
                       datasetId={datasetId} 
@@ -464,21 +464,23 @@ function App() {
                 </div>
               )}
 
-              {/* Universal Bottom Input Bar */}
-              <BottomInputBar 
-                file={file}
-                setFile={setFile}
-                prompt={prompt}
-                setPrompt={setPrompt}
-                onExecute={handleAnalyze}
-                loading={loading}
-                isUploading={isUploading}
-                onCancel={handleCancel}
-                isCancelling={isCancelling}
-              />
-              
-              {/* Extra spacing */}
-              <div className="h-12" />
+              {/* Universal Bottom Input Bar (Hidden on Mobile when Chat is open) */}
+              <div className={`${showChat && currentView === 'result' ? 'hidden lg:block' : 'block'}`}>
+                <BottomInputBar 
+                  file={file}
+                  setFile={setFile}
+                  prompt={prompt}
+                  setPrompt={setPrompt}
+                  onExecute={handleAnalyze}
+                  loading={loading}
+                  isUploading={isUploading}
+                  onCancel={handleCancel}
+                  isCancelling={isCancelling}
+                />
+                
+                {/* Extra spacing */}
+                <div className="h-12" />
+              </div>
             </div>
           </main>
         )}
