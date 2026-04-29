@@ -246,7 +246,7 @@ function App() {
         setViewingHistoryItem({ filename: item.filename, query: item.query });
         setCurrentView('result');
         setPrompt(item.query || '');
-        
+
         // Use requested mode or default to charts
         if (mode === 'chat') {
           setSelectedAction('chat');
@@ -418,70 +418,70 @@ function App() {
                               </span>
                             </div>
 
-                             {/* No-data alert banner */}
-                             {noDataAlert && (
-                               <div className="w-full flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-[12px] font-medium animate-fade-in">
-                                 <AlertCircle size={16} className="shrink-0 text-amber-500" />
-                                 <span>Please upload a data file first before choosing an action.</span>
-                                 <button onClick={() => setNoDataAlert(false)} className="ml-auto p-0.5 hover:bg-amber-100 rounded-md">
-                                   <X size={14} />
-                                 </button>
-                               </div>
-                             )}
+                            {/* No-data alert banner */}
+                            {noDataAlert && (
+                              <div className="w-full flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-[12px] font-medium animate-fade-in">
+                                <AlertCircle size={16} className="shrink-0 text-amber-500" />
+                                <span>Please upload a data file first before choosing an action.</span>
+                                <button onClick={() => setNoDataAlert(false)} className="ml-auto p-0.5 hover:bg-amber-100 rounded-md">
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            )}
 
-                             {/* Step 2: Actions */}
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full transition-all duration-300 animate-fade-in-up">
-                               {/* Generate Charts card */}
-                               <div
-                                 className={`p-6 bg-white border ${selectedAction === 'charts' ? 'border-anthropic-terracotta shadow-md' : 'border-anthropic-border-cream'} rounded-2xl text-left hover:border-anthropic-border-warm transition-all cursor-pointer group ${!file && !datasetId ? 'opacity-50' : ''}`}
-                                 onClick={() => {
-                                   if (!file && !datasetId) {
-                                     setNoDataAlert(true);
-                                     setTimeout(() => setNoDataAlert(false), 4000);
-                                     return;
-                                   }
-                                   if (analysisData) {
-                                     setCurrentView('result');
-                                     setShowChat(false);
-                                     setSelectedAction('charts');
-                                   } else {
-                                     setSelectedAction('charts');
-                                   }
-                                 }}
-                               >
-                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${selectedAction === 'charts' ? 'bg-anthropic-terracotta text-white' : 'bg-anthropic-warm-sand/50 text-anthropic-terracotta'}`}>
-                                   <Zap size={20} className="currentColor" />
-                                 </div>
-                                 <h3 className="font-semibold text-anthropic-near-black mb-1">Generate Charts</h3>
-                                 <p className="text-[12px] text-anthropic-stone-gray line-clamp-2">Automatically generate charts and maps to reveal patterns.</p>
-                               </div>
+                            {/* Step 2: Actions */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full transition-all duration-300 animate-fade-in-up">
+                              {/* Generate Charts card */}
+                              <div
+                                className={`p-6 bg-white border ${selectedAction === 'charts' ? 'border-anthropic-terracotta shadow-md' : 'border-anthropic-border-cream'} rounded-2xl text-left hover:border-anthropic-border-warm transition-all cursor-pointer group ${!file && !datasetId ? 'opacity-50' : ''}`}
+                                onClick={() => {
+                                  if (!file && !datasetId) {
+                                    setNoDataAlert(true);
+                                    setTimeout(() => setNoDataAlert(false), 4000);
+                                    return;
+                                  }
+                                  if (analysisData) {
+                                    setCurrentView('result');
+                                    setShowChat(false);
+                                    setSelectedAction('charts');
+                                  } else {
+                                    setSelectedAction('charts');
+                                  }
+                                }}
+                              >
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${selectedAction === 'charts' ? 'bg-anthropic-terracotta text-white' : 'bg-anthropic-warm-sand/50 text-anthropic-terracotta'}`}>
+                                  <Zap size={20} className="currentColor" />
+                                </div>
+                                <h3 className="font-semibold text-anthropic-near-black mb-1">Generate Charts</h3>
+                                <p className="text-[12px] text-anthropic-stone-gray line-clamp-2">Automatically generate charts and maps to reveal patterns.</p>
+                              </div>
 
-                               {/* Chat Feature card */}
-                               <div
-                                 className={`p-6 bg-white border ${selectedAction === 'chat' ? 'border-anthropic-terracotta shadow-md' : 'border-anthropic-border-cream'} rounded-2xl text-left hover:border-anthropic-border-warm transition-all cursor-pointer group ${!file && !datasetId ? 'opacity-50' : ''}`}
-                                 onClick={() => {
-                                   if (!file && !datasetId) {
-                                     setNoDataAlert(true);
-                                     setTimeout(() => setNoDataAlert(false), 4000);
-                                     return;
-                                   }
-                                   if (datasetId) {
-                                     setChatInitialQuery(null);
-                                     setShowChat(true);
-                                     setCurrentView('result');
-                                     setSelectedAction('chat');
-                                   } else {
-                                     setSelectedAction('chat');
-                                   }
-                                 }}
-                               >
-                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${selectedAction === 'chat' ? 'bg-anthropic-terracotta text-white' : 'bg-anthropic-warm-sand/50 text-anthropic-terracotta'}`}>
-                                   <Sparkles size={20} className="currentColor" />
-                                 </div>
-                                 <h3 className="font-semibold text-anthropic-near-black mb-1">Chat Feature</h3>
-                                 <p className="text-[12px] text-anthropic-stone-gray line-clamp-2">Interact with AI to analyze your data.</p>
-                               </div>
-                             </div>
+                              {/* Chat Feature card */}
+                              <div
+                                className={`p-6 bg-white border ${selectedAction === 'chat' ? 'border-anthropic-terracotta shadow-md' : 'border-anthropic-border-cream'} rounded-2xl text-left hover:border-anthropic-border-warm transition-all cursor-pointer group ${!file && !datasetId ? 'opacity-50' : ''}`}
+                                onClick={() => {
+                                  if (!file && !datasetId) {
+                                    setNoDataAlert(true);
+                                    setTimeout(() => setNoDataAlert(false), 4000);
+                                    return;
+                                  }
+                                  if (datasetId) {
+                                    setChatInitialQuery(null);
+                                    setShowChat(true);
+                                    setCurrentView('result');
+                                    setSelectedAction('chat');
+                                  } else {
+                                    setSelectedAction('chat');
+                                  }
+                                }}
+                              >
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${selectedAction === 'chat' ? 'bg-anthropic-terracotta text-white' : 'bg-anthropic-warm-sand/50 text-anthropic-terracotta'}`}>
+                                  <Sparkles size={20} className="currentColor" />
+                                </div>
+                                <h3 className="font-semibold text-anthropic-near-black mb-1">Chat Feature</h3>
+                                <p className="text-[12px] text-anthropic-stone-gray line-clamp-2">Interact with AI to analyze your data.</p>
+                              </div>
+                            </div>
                           </>
                         )}
                       </div>
@@ -490,36 +490,23 @@ function App() {
 
                   {/* Results View */}
                   {currentView === 'result' && (
-                    <div className="flex-1 flex flex-col min-h-0 bg-white">
-                      {/* Analysis Meta Header - Integrated */}
-                      <div className="px-4 sm:px-8 py-4 border-b border-anthropic-border-cream flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 bg-anthropic-ivory/50">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                          {/* ← Back to action selector */}
-                          <button
-                            onClick={() => {
-                              setCurrentView('new');
-                              setShowChat(false);
-                              setSelectedAction(null);
-                            }}
-                            title="Back to action selector"
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/40 border border-transparent hover:border-anthropic-border-cream rounded-lg text-[11px] font-semibold uppercase tracking-tight transition-all shrink-0"
-                          >
-                            <ArrowLeft size={13} />
-                            <span>Back</span>
-                          </button>
+                        <div className="flex-1 flex flex-col min-h-0 bg-white">
+                          {/* Analysis Header */}
+                          <div className="flex items-center justify-between px-6 py-4 border-b border-anthropic-border-cream bg-white/50 backdrop-blur-sm shrink-0 min-h-[72px]">
+                            {/* Left Side: Title & Filename */}
+                            <div className="flex items-center gap-3 min-w-0 flex-1 mr-4">
+                              <h2 className="text-feature !text-[1rem] font-serif line-clamp-1 md:truncate min-w-0 flex-1">
+                                {viewingHistoryItem?.query || prompt}
+                              </h2>
+                              <div className="flex items-center gap-2 text-anthropic-stone-gray text-[10px] uppercase tracking-wider shrink-0 hidden lg:flex">
+                                <span className="px-1.5 py-0.5 bg-anthropic-warm-sand/30 rounded border border-anthropic-border-cream truncate max-w-[120px]">
+                                  {viewingHistoryItem?.filename || file?.name}
+                                </span>
+                              </div>
+                            </div>
 
-                          <h2 className="text-feature !text-[1rem] font-serif line-clamp-2 md:truncate max-w-md">
-                            {viewingHistoryItem?.query || prompt}
-                          </h2>
-                          <div className="flex items-center gap-2 text-anthropic-stone-gray text-[10px] uppercase tracking-wider shrink-0">
-                            <span className="px-1.5 py-0.5 bg-anthropic-warm-sand/30 rounded border border-anthropic-border-cream truncate max-w-[150px]">
-                              {viewingHistoryItem?.filename || file?.name}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Right Side Actions */}
-                        <div className="flex items-center flex-wrap gap-3">
+                            {/* Right Side Actions */}
+                            <div className="flex items-center gap-2 shrink-0">
                           {/* Switch between Charts ↔ Chat */}
                           {analysisData && !loading && selectedAction === 'chat' && (
                             <button
@@ -631,7 +618,7 @@ function App() {
                       }
                       onShowCharts={selectedAction === 'chat' ? () => {
                         setSelectedAction('charts');
-                        setShowChat(true); // Keep chat open, but split with charts
+                        setShowChat(true); 
                       } : null}
                     />
                   </div>
@@ -672,11 +659,10 @@ function App() {
                         {/* Generate Charts tab */}
                         <button
                           onClick={() => setSelectedAction('charts')}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all duration-200 ${
-                            selectedAction === 'charts'
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all duration-200 ${selectedAction === 'charts'
                               ? 'bg-anthropic-near-black text-white shadow-sm'
                               : 'text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/40'
-                          }`}
+                            }`}
                         >
                           <Zap size={13} className={selectedAction === 'charts' ? 'text-white' : 'text-anthropic-terracotta'} />
                           Generate Charts
@@ -685,11 +671,10 @@ function App() {
                         {/* Chat Feature tab */}
                         <button
                           onClick={() => setSelectedAction('chat')}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all duration-200 ${
-                            selectedAction === 'chat'
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all duration-200 ${selectedAction === 'chat'
                               ? 'bg-anthropic-near-black text-white shadow-sm'
                               : 'text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/40'
-                          }`}
+                            }`}
                         >
                           <Sparkles size={13} className={selectedAction === 'chat' ? 'text-white' : 'text-anthropic-terracotta'} />
                           Chat Feature

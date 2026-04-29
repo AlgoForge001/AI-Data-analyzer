@@ -83,11 +83,10 @@ const HistoryPage = ({ history = [], onHistoryItemClick, onDeleteHistoryItem }) 
               setFilterStatus(type);
               setCurrentPage(1);
             }}
-            className={`px-6 py-2 rounded-xl text-body-sm font-medium capitalize transition-all border shrink-0 ${
-              filterStatus === type
+            className={`px-6 py-2 rounded-xl text-body-sm font-medium capitalize transition-all border shrink-0 ${filterStatus === type
                 ? "bg-[var(--text-primary)] text-[var(--bg-base)] border-[var(--text-primary)] shadow-lg"
                 : "bg-[var(--bg-card)] text-anthropic-stone-gray border-[var(--border-color)] hover:text-anthropic-near-black"
-            }`}
+              }`}
           >
             {type}
           </button>
@@ -174,11 +173,10 @@ const HistoryPage = ({ history = [], onHistoryItemClick, onDeleteHistoryItem }) 
             <button
               key={page}
               onClick={() => setCurrentPage(page)}
-              className={`w-9 h-9 rounded-xl text-body-sm font-medium transition-all ${
-                currentPage === page
+              className={`w-9 h-9 rounded-xl text-body-sm font-medium transition-all ${currentPage === page
                   ? "bg-anthropic-focus/10 text-anthropic-focus border border-anthropic-focus/20"
                   : "text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-[var(--bg-input)]"
-              }`}
+                }`}
             >
               {page}
             </button>

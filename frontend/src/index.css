@@ -208,11 +208,14 @@
     filter: brightness(1.1) !important;
   }
 
-  /* User Popover specific fix */
-  .user-popover {
+  /* User Popover and History Hover Card fix */
+  .user-popover,
+  .history-hover-card {
     background-color: var(--bg-popover) !important;
     backdrop-filter: blur(32px) !important;
     -webkit-backdrop-filter: blur(32px) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: var(--shadow) !important;
   }
 
   /* Sidebar styling */

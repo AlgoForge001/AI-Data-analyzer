@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard,
   Search,
@@ -13,6 +13,7 @@ import {
   LogOut,
   Moon,
   Sun,
+  Sparkles,
 } from "lucide-react";
 
 /* Tooltip that appears on the right side when sidebar is collapsed */
@@ -53,8 +54,8 @@ const SidebarItem = ({ icon: Icon, label, active = false, onClick, isCollapsed }
     <Icon
       size={18}
       className={`${active
-          ? "text-anthropic-near-black"
-          : "text-anthropic-stone-gray group-hover:text-anthropic-near-black"
+        ? "text-anthropic-near-black"
+        : "text-anthropic-stone-gray group-hover:text-anthropic-near-black"
         } transition-colors shrink-0`}
     />
 
@@ -96,6 +97,10 @@ const Sidebar = ({
   onNavigate,
 }) => {
   const [showUserPopover, setShowUserPopover] = useState(false);
+  const [hoveredItemId, setHoveredItemId] = useState(null);
+  const [hoveredItemPos, setHoveredItemPos] = useState({ top: 0, left: 0 });
+  const hoverTimeoutRef = useRef(null);
+  
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof document !== 'undefined') {
       return document.documentElement.getAttribute('data-theme') === 'dark';
@@ -110,6 +115,27 @@ const Sidebar = ({
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => observer.disconnect();
   }, []);
+
+  const handleItemMouseEnter = (e, item) => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoveredItemId(item.task_id);
+    setHoveredItemPos({ top: rect.top + rect.height / 2, left: rect.right });
+  };
+
+  const handleItemMouseLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredItemId(null);
+    }, 150);
+  };
+
+  const handleMenuMouseEnter = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+  };
+
+  const handleMenuMouseLeave = () => {
+    handleItemMouseLeave();
+  };
 
   return (
     <>
@@ -228,8 +254,7 @@ const Sidebar = ({
         </div>
 
         <nav
-          className="flex flex-col flex-1 min-h-0 -mx-2 px-2"
-          style={{ overflowX: 'visible' }}
+          className="flex flex-col flex-1 min-h-0 -mx-2 px-2 overflow-y-auto overflow-x-visible scrollbar-hide"
         >
           {/* Menu items */}
           <div className="space-y-1" style={{ overflowX: 'visible' }}>
@@ -266,23 +291,78 @@ const Sidebar = ({
               <p className="text-overline text-anthropic-stone-gray ml-4 mb-2 uppercase tracking-widest text-[9px] shrink-0">
                 Recent
               </p>
-              <div className="flex-1 overflow-y-auto scrollbar-hide space-y-0.5 pr-1">
+              <div className="flex-1 space-y-0.5 pr-1">
                 {history.map((item) => (
                   <div
                     key={item.task_id}
-                    onClick={() => {
-                      onHistoryItemClick(item.task_id);
-                      onClose();
-                    }}
-                    className="px-4 py-2 text-[11px] text-anthropic-olive-gray hover:text-anthropic-near-black truncate cursor-pointer rounded-lg hover:bg-anthropic-warm-sand/30 transition-colors"
+                    onMouseEnter={(e) => handleItemMouseEnter(e, item)}
+                    onMouseLeave={handleItemMouseLeave}
+                    className="group/history-item relative px-4 py-2 rounded-lg hover:bg-anthropic-warm-sand/30 transition-all duration-200"
                   >
-                    {item.query || "Untitled"}
+                    <div
+                      onClick={() => {
+                        onHistoryItemClick(item.task_id);
+                        onClose();
+                      }}
+                      className="text-[11px] text-anthropic-olive-gray group-hover/history-item:text-anthropic-near-black truncate cursor-pointer transition-colors"
+                      title={item.query || "Untitled"}
+                    >
+                      {item.query || "Untitled"}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
         </nav>
+
+        {/* Floating Hover Card outside Sidebar - Portaled via fixed positioning */}
+        {hoveredItemId && (
+          <div 
+            onMouseEnter={handleMenuMouseEnter}
+            onMouseLeave={handleMenuMouseLeave}
+            className="history-hover-card fixed z-[9999] flex flex-col gap-1.5 rounded-xl p-2 ml-4 min-w-[180px] animate-in fade-in slide-in-from-left-2 duration-200"
+            style={{ 
+              top: hoveredItemPos.top, 
+              left: hoveredItemPos.left,
+              transform: 'translateY(-50%)' 
+            }}
+          >
+            {/* Visual pointer/arrow */}
+            <div 
+              className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 border-l border-b border-anthropic-border-cream dark:border-anthropic-border-dark rotate-45" 
+              style={{ backgroundColor: 'var(--bg-popover)' }}
+            />
+            
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onHistoryItemClick(hoveredItemId, 'charts');
+                onClose();
+                setHoveredItemId(null);
+              }}
+              title="Open Charts"
+              className="w-full flex items-center gap-3 py-2 px-4 bg-anthropic-warm-sand/50 border border-anthropic-border-warm text-anthropic-near-black rounded-lg hover:bg-anthropic-warm-sand transition-all transform active:scale-95 z-10"
+            >
+              <LayoutDashboard size={14} className="shrink-0" />
+              <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">Open Charts</span>
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onHistoryItemClick(hoveredItemId, 'chat');
+                onClose();
+                setHoveredItemId(null);
+              }}
+              title="Open Assistant"
+              className="w-full flex items-center gap-3 py-2 px-4 bg-anthropic-terracotta text-white rounded-lg hover:opacity-90 transition-all transform active:scale-95 z-10 font-medium"
+            >
+              <Sparkles size={14} className="shrink-0" />
+              <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">Open Assistant</span>
+            </button>
+          </div>
+        )}
 
         {/* User Info Card */}
         <div className="mt-auto relative">

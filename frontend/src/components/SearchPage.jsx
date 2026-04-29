@@ -67,11 +67,10 @@ const SearchPage = ({ history = [], onHistoryItemClick }) => {
           <button
             key={type}
             onClick={() => setFilterType(type)}
-            className={`px-6 py-2 rounded-xl text-body-sm font-medium capitalize transition-all border shrink-0 ${
-              filterType === type
+            className={`px-6 py-2 rounded-xl text-body-sm font-medium capitalize transition-all border shrink-0 ${filterType === type
                 ? "bg-[var(--text-primary)] text-[var(--bg-base)] border-[var(--text-primary)] shadow-lg"
                 : "bg-[var(--bg-card)] text-anthropic-stone-gray border-anthropic-border-cream hover:border-anthropic-border-warm hover:text-anthropic-near-black"
-            }`}
+              }`}
           >
             {type}
           </button>
@@ -116,13 +115,12 @@ const SearchPage = ({ history = [], onHistoryItemClick }) => {
 
               <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 mt-2 sm:mt-0">
                 <span
-                  className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${
-                    item.status === "completed"
+                  className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${item.status === "completed"
                       ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                       : item.status === "error"
-                      ? "bg-anthropic-error/10 text-anthropic-error border-anthropic-error/20"
-                      : "bg-[var(--bg-input)] text-anthropic-stone-gray border-anthropic-border-cream"
-                  }`}
+                        ? "bg-anthropic-error/10 text-anthropic-error border-anthropic-error/20"
+                        : "bg-[var(--bg-input)] text-anthropic-stone-gray border-anthropic-border-cream"
+                    }`}
                 >
                   {item.status || "Processing"}
                 </span>

@@ -131,7 +131,7 @@ const Chat = ({ datasetId, onClose, initialSummary, initialQuery, onInitialQuery
     };
 
     init();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [datasetId]);
 
   const handleSend = async (e) => {
@@ -180,19 +180,19 @@ const Chat = ({ datasetId, onClose, initialSummary, initialQuery, onInitialQuery
     <div className="flex flex-col h-full bg-anthropic-ivory border-l border-anthropic-border-cream overflow-hidden animate-fade-in-up">
       {/* Chat Header */}
       <div className="px-4 py-2.5 border-b border-anthropic-border-cream bg-anthropic-warm-sand/20 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           <Sparkles size={14} className="text-anthropic-terracotta shrink-0" />
-          <span className="text-[12px] font-semibold text-anthropic-near-black tracking-tight">
+          <span className="text-[12px] font-semibold text-anthropic-near-black tracking-tight truncate">
             Data Assistant
           </span>
-          <span className="text-[10px] text-anthropic-stone-gray hidden sm:inline">· Real-time Analysis</span>
+          <span className="text-[10px] text-anthropic-stone-gray hidden md:inline whitespace-nowrap opacity-60">· Real-time Analysis</span>
         </div>
         <div className="flex items-center gap-2">
           {onShowCharts && (
             <button
               onClick={onShowCharts}
               title="View Charts"
-              className="flex items-center gap-1.5 px-2.5 py-1 text-anthropic-terracotta hover:bg-anthropic-terracotta/10 border border-anthropic-terracotta/20 rounded-md transition-all text-[10px] font-bold uppercase tracking-tight"
+              className="flex items-center gap-1.5 px-2.5 py-1 text-anthropic-terracotta hover:bg-anthropic-terracotta/10 border border-anthropic-terracotta/20 transition-all text-[10px] font-bold uppercase tracking-tight"
             >
               <Zap size={13} />
               <span>Show Charts</span>
@@ -239,22 +239,20 @@ const Chat = ({ datasetId, onClose, initialSummary, initialQuery, onInitialQuery
               className={`flex gap-3 max-w-[92%] ${msg.role === "user" ? "flex-row-reverse" : ""}`}
             >
               <div
-                className={`flex-shrink-0 flex items-center justify-center mt-1 ${
-                  msg.role === "user"
+                className={`flex-shrink-0 flex items-center justify-center mt-1 ${msg.role === "user"
                     ? "text-anthropic-stone-gray"
                     : "text-anthropic-terracotta"
-                }`}
+                  }`}
               >
                 {msg.role === "user" ? <User size={16} /> : <Bot size={18} />}
               </div>
               <div
-                className={`group relative p-4 text-body-sm leading-relaxed shadow-sm ${
-                  msg.role === "user"
+                className={`group relative p-4 text-body-sm leading-relaxed shadow-sm ${msg.role === "user"
                     ? "bg-anthropic-near-black text-anthropic-ivory"
                     : msg.isError
                       ? "bg-anthropic-error/10 border border-anthropic-error/20 text-anthropic-error"
                       : "bg-anthropic-warm-sand/50 border border-anthropic-border-cream text-anthropic-near-black"
-                }`}
+                  }`}
               >
                 {msg.content}
 
