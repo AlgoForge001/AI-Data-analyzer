@@ -191,6 +191,22 @@ async def get_history_item(task_id: str):
     return JSONResponse(content=result)
 
 # ─────────────────────────────────────────────
+@router.get("/chats/{dataset_id}")
+async def get_chats(dataset_id: str):
+    """
+    Returns the saved chat history for a dataset so the frontend can
+    restore previous conversations when the chat panel is re-opened.
+    """
+    doc = get_analysis_by_dataset_id(dataset_id)
+    if doc is None:
+        return JSONResponse(status_code=404, content={"error": "Dataset not found"})
+    chats = doc.get("chats", [])
+    # Convert timestamps to strings for JSON serialisation
+    from app.db.mongodb import _convert_datetimes
+    chats = _convert_datetimes(chats)
+    return {"chats": chats}
+
+# ─────────────────────────────────────────────
 class ChatRequest(BaseModel):
     dataset_id: str
     query: str

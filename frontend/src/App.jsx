@@ -9,7 +9,7 @@ import AnalyticsPage from './components/AnalyticsPage';
 import HistoryPage from './components/HistoryPage';
 import SettingsPage from './components/SettingsPage';
 import UserProfilePage from './components/UserProfilePage';
-import { Zap, Loader2, AlertCircle, PanelRightOpen, Database, Sparkles, X } from 'lucide-react';
+import { Zap, Loader2, AlertCircle, PanelRightOpen, Database, Sparkles, X, ArrowLeft, LayoutDashboard } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || "https://javax.onrender.com";
 const POLL_INTERVAL_MS = 2000;
@@ -30,6 +30,7 @@ function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [error, setError] = useState(null);
+  const [noDataAlert, setNoDataAlert] = useState(false);
   const [analysisData, setAnalysisData] = useState(null);
   const [history, setHistory] = useState([]);
   const [currentView, setCurrentView] = useState('new'); // 'new' or 'result'
@@ -42,6 +43,10 @@ function App() {
     return localStorage.getItem('sidebarCollapsed') === 'true';
   });
   const [activeResultTab, setActiveResultTab] = useState('charts');
+  const [selectedAction, setSelectedAction] = useState(null); // 'charts' | 'chat' | null
+  // chatInitialQuery: the prompt auto-fired when chat panel first opens (Bug 1)
+  const [chatInitialQuery, setChatInitialQuery] = useState(null);
+  const fileInputAppRef = useRef(null);
   const [isResizing, setIsResizing] = useState(false);
   const [splitRatio, setSplitRatio] = useState(() => {
     const saved = localStorage.getItem('dashboardSplitRatio');
@@ -60,6 +65,13 @@ function App() {
     localStorage.setItem('dashboardSplitRatio', splitRatio);
   }, [splitRatio]);
 
+  // Reset selected action when file is removed
+  React.useEffect(() => {
+    if (!file) {
+      setSelectedAction(null);
+    }
+  }, [file]);
+
   const handleMouseDown = (e) => {
     setIsResizing(true);
     document.addEventListener('mousemove', handleMouseMove);
@@ -70,14 +82,14 @@ function App() {
 
   const handleMouseMove = (e) => {
     if (!containerRef.current) return;
-    
+
     const containerRect = containerRef.current.getBoundingClientRect();
     const newRatio = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-    
+
     // Constraints: min 320px for both sides
     const minPercent = (320 / containerRect.width) * 100;
     const maxPercent = 100 - minPercent;
-    
+
     if (newRatio >= minPercent && newRatio <= maxPercent) {
       setSplitRatio(newRatio);
     }
@@ -135,7 +147,7 @@ function App() {
     }
 
     if (taskIdRef.current) {
-      await fetch(`${API_URL}/cancel/${taskIdRef.current}`, { method: 'POST' }).catch(() => {});
+      await fetch(`${API_URL}/cancel/${taskIdRef.current}`, { method: 'POST' }).catch(() => { });
     }
 
     stopPolling();
@@ -174,14 +186,22 @@ function App() {
 
         const statusRes = await fetch(`${API_URL}/status/${task_id}`);
         if (!statusRes.ok) throw new Error(`Status check failed: ${statusRes.status}`);
-        
+
         const result = await statusRes.json();
         if (result.status === 'completed') {
           setAnalysisData(result.data);
           setDatasetId(result.dataset_id);
           setCurrentView('result');
           setViewingHistoryItem(null);
-          setShowChat(true);
+          if (selectedAction === 'chat') {
+            // Bug 1 fix: pass the typed prompt as initialQuery so it's
+            // auto-fired in the Chat panel — user won't need to retype.
+            setChatInitialQuery(prompt);
+            setShowChat(true);
+          } else {
+            setChatInitialQuery(null);
+            setShowChat(false);
+          }
           break;
         }
         if (result.status === 'cancelled') break;
@@ -195,7 +215,7 @@ function App() {
       resetState();
       fetchHistory();
     }
-  }, [file, prompt, fetchHistory]);
+  }, [file, prompt, selectedAction, fetchHistory]);
 
   // ── cancel ──
   const handleCancel = useCallback(() => {
@@ -203,10 +223,10 @@ function App() {
     if (!taskId) return;
     setIsCancelling(true);
     stopPolling();
-    fetch(`${API_URL}/cancel/${taskId}`, { method: 'POST' }).catch(() => {});
+    fetch(`${API_URL}/cancel/${taskId}`, { method: 'POST' }).catch(() => { });
   }, []);
 
-  const handleLoadHistoryItem = useCallback(async (taskId) => {
+  const handleLoadHistoryItem = useCallback(async (taskId, mode = null) => {
     setLoading(true);
     setError(null);
     setAnalysisData(null);
@@ -226,7 +246,15 @@ function App() {
         setViewingHistoryItem({ filename: item.filename, query: item.query });
         setCurrentView('result');
         setPrompt(item.query || '');
-        setShowChat(true);
+        
+        // Use requested mode or default to charts
+        if (mode === 'chat') {
+          setSelectedAction('chat');
+          setShowChat(true);
+        } else {
+          setSelectedAction('charts');
+          setShowChat(mode === 'charts' ? false : showChat);
+        }
       } else if (item.status === 'error') {
         setError(item.error || 'This analysis failed previously');
       } else {
@@ -242,7 +270,7 @@ function App() {
   const handleDeleteHistoryItem = useCallback(async (taskId, e) => {
     if (e) e.stopPropagation();
     if (!window.confirm("Are you sure you want to delete this analysis?")) return;
-    
+
     try {
       const res = await fetch(`${API_URL}/history/${taskId}`, { method: 'DELETE' });
       if (res.ok) {
@@ -265,6 +293,8 @@ function App() {
     setShowChat(false);
     setActivePage('dashboard');
     setActiveResultTab('charts');
+    setSelectedAction(null);
+    setChatInitialQuery(null);
   };
 
   const handleNavigate = (page) => {
@@ -278,9 +308,9 @@ function App() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-anthropic-parchment text-anthropic-near-black">
-      <Sidebar 
-        isOpen={sidebarOpen} 
-        onClose={() => setSidebarOpen(false)} 
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         history={history}
@@ -292,8 +322,8 @@ function App() {
       />
 
       <div className={`flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-[56px]' : 'lg:ml-[220px]'}`}>
-        <Header 
-          onMenuClick={() => setSidebarOpen(!sidebarOpen)} 
+        <Header
+          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
           pageTitle={pageTitle}
           isSidebarCollapsed={sidebarCollapsed}
         />
@@ -308,9 +338,9 @@ function App() {
               <AnalyticsPage history={history} />
             )}
             {activePage === 'history' && (
-              <HistoryPage 
-                history={history} 
-                onHistoryItemClick={handleLoadHistoryItem} 
+              <HistoryPage
+                history={history}
+                onHistoryItemClick={handleLoadHistoryItem}
                 onDeleteHistoryItem={handleDeleteHistoryItem}
               />
             )}
@@ -324,17 +354,17 @@ function App() {
           <main className="flex-1 flex flex-col min-h-0 bg-white">
             <div className="flex-1 flex flex-col min-h-0">
               {/* Main Workspace Area */}
-              <div 
+              <div
                 ref={containerRef}
                 className={`flex-1 flex min-h-0 ${isResizing ? '' : 'transition-all duration-500 ease-in-out'} ${currentView === 'result' ? 'gap-0' : 'gap-0'}`}
               >
-                
+
                 {/* Left Side: Welcome or Results */}
-                <div 
-                  className={`flex-col overflow-hidden ${isResizing ? '' : 'transition-all duration-500 ease-in-out'} ${showChat && currentView === 'result' ? 'hidden lg:flex' : 'flex'} w-full lg:w-[var(--split-width)]`} 
+                <div
+                  className={`flex-col overflow-hidden ${isResizing ? '' : 'transition-all duration-500 ease-in-out'} ${currentView === 'result' && selectedAction === 'chat' ? 'hidden' : showChat && currentView === 'result' ? 'hidden lg:flex' : 'flex'} w-full lg:w-[var(--split-width)]`}
                   style={{ '--split-width': currentView === 'result' && showChat ? `${splitRatio}%` : '100%' }}
                 >
-                  
+
                   {/* Initial Welcome State */}
                   {currentView === 'new' && (
                     <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 text-center animate-fade-in">
@@ -345,22 +375,115 @@ function App() {
                       <p className="text-anthropic-stone-gray max-w-md text-sm md:text-body-std leading-relaxed">
                         Upload a dataset and describe the analysis you need. I'll generate insights, visualizations, and a summary for you.
                       </p>
-                      
-                      <div className="mt-8 md:mt-12 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl w-full">
-                        <div className="p-6 bg-white border border-anthropic-border-cream rounded-2xl text-left hover:border-anthropic-border-warm transition-all cursor-pointer group">
-                          <div className="w-10 h-10 bg-anthropic-warm-sand/50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                            <Sparkles size={20} className="text-anthropic-terracotta" />
+
+                      <div className="mt-8 md:mt-12 flex flex-col items-center gap-6 max-w-2xl w-full">
+
+                        {/* Step 1: Upload Data */}
+                        <div
+                          className={`w-full max-w-md p-4 flex items-center justify-between rounded-2xl cursor-pointer transition-all ${file ? 'bg-anthropic-warm-sand/50 border border-anthropic-terracotta shadow-sm' : 'bg-anthropic-near-black text-white hover:bg-anthropic-near-black/90 shadow-md'}`}
+                          onClick={() => fileInputAppRef.current?.click()}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${file ? 'bg-white shadow-sm' : 'bg-white/20'}`}>
+                              <Database size={20} className={file ? 'text-anthropic-terracotta' : 'text-white'} />
+                            </div>
+                            <div className="text-left">
+                              <h3 className={`font-semibold text-sm ${file ? 'text-anthropic-near-black' : 'text-white'}`}>
+                                {file ? 'Data Uploaded Successfully' : ' Upload Data'}
+                              </h3>
+                              <p className={`text-[12px] mt-0.5 line-clamp-1 ${file ? 'text-anthropic-stone-gray' : 'text-white/70'}`}>
+                                {file ? file.name : 'Select a .csv, .xlsx, or .json file'}
+                              </p>
+                            </div>
                           </div>
-                          <h3 className="font-semibold text-anthropic-near-black mb-1">Predictive Insights</h3>
-                          <p className="text-[12px] text-anthropic-stone-gray line-clamp-2">Analyze trends and forecast future outcomes based on historical data.</p>
+                          {!file && (
+                            <div className="px-4 py-2 bg-white/10 hover:bg-white/20 transition-colors rounded-lg text-[12px] font-medium text-white shrink-0">
+                              Browse Files
+                            </div>
+                          )}
+                          {file && (
+                            <div className="px-4 py-2 bg-white hover:bg-anthropic-warm-sand transition-colors rounded-lg text-[12px] font-medium text-anthropic-terracotta border border-anthropic-border-warm shrink-0">
+                              Change File
+                            </div>
+                          )}
                         </div>
-                        <div className="p-6 bg-white border border-anthropic-border-cream rounded-2xl text-left hover:border-anthropic-border-warm transition-all cursor-pointer group">
-                          <div className="w-10 h-10 bg-anthropic-warm-sand/50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                            <Zap size={20} className="text-anthropic-terracotta" />
-                          </div>
-                          <h3 className="font-semibold text-anthropic-near-black mb-1">Visual Discovery</h3>
-                          <p className="text-[12px] text-anthropic-stone-gray line-clamp-2">Automatically generate charts and maps to reveal hidden patterns.</p>
-                        </div>
+
+                        {/* Step 2 Divider and Actions (Hidden once an action is selected) */}
+                        {!selectedAction && (
+                          <>
+                            <div className="w-full relative flex items-center justify-center my-2 animate-fade-in-up">
+                              <div className="absolute w-full h-[1px] bg-anthropic-border-cream"></div>
+                              <span className={`relative bg-white px-4 text-[11px] font-bold uppercase tracking-widest transition-colors ${file ? 'text-anthropic-terracotta' : 'text-anthropic-stone-gray/50'}`}>
+                                Step 2: Choose Action
+                              </span>
+                            </div>
+
+                             {/* No-data alert banner */}
+                             {noDataAlert && (
+                               <div className="w-full flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-[12px] font-medium animate-fade-in">
+                                 <AlertCircle size={16} className="shrink-0 text-amber-500" />
+                                 <span>Please upload a data file first before choosing an action.</span>
+                                 <button onClick={() => setNoDataAlert(false)} className="ml-auto p-0.5 hover:bg-amber-100 rounded-md">
+                                   <X size={14} />
+                                 </button>
+                               </div>
+                             )}
+
+                             {/* Step 2: Actions */}
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full transition-all duration-300 animate-fade-in-up">
+                               {/* Generate Charts card */}
+                               <div
+                                 className={`p-6 bg-white border ${selectedAction === 'charts' ? 'border-anthropic-terracotta shadow-md' : 'border-anthropic-border-cream'} rounded-2xl text-left hover:border-anthropic-border-warm transition-all cursor-pointer group ${!file && !datasetId ? 'opacity-50' : ''}`}
+                                 onClick={() => {
+                                   if (!file && !datasetId) {
+                                     setNoDataAlert(true);
+                                     setTimeout(() => setNoDataAlert(false), 4000);
+                                     return;
+                                   }
+                                   if (analysisData) {
+                                     setCurrentView('result');
+                                     setShowChat(false);
+                                     setSelectedAction('charts');
+                                   } else {
+                                     setSelectedAction('charts');
+                                   }
+                                 }}
+                               >
+                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${selectedAction === 'charts' ? 'bg-anthropic-terracotta text-white' : 'bg-anthropic-warm-sand/50 text-anthropic-terracotta'}`}>
+                                   <Zap size={20} className="currentColor" />
+                                 </div>
+                                 <h3 className="font-semibold text-anthropic-near-black mb-1">Generate Charts</h3>
+                                 <p className="text-[12px] text-anthropic-stone-gray line-clamp-2">Automatically generate charts and maps to reveal patterns.</p>
+                               </div>
+
+                               {/* Chat Feature card */}
+                               <div
+                                 className={`p-6 bg-white border ${selectedAction === 'chat' ? 'border-anthropic-terracotta shadow-md' : 'border-anthropic-border-cream'} rounded-2xl text-left hover:border-anthropic-border-warm transition-all cursor-pointer group ${!file && !datasetId ? 'opacity-50' : ''}`}
+                                 onClick={() => {
+                                   if (!file && !datasetId) {
+                                     setNoDataAlert(true);
+                                     setTimeout(() => setNoDataAlert(false), 4000);
+                                     return;
+                                   }
+                                   if (datasetId) {
+                                     setChatInitialQuery(null);
+                                     setShowChat(true);
+                                     setCurrentView('result');
+                                     setSelectedAction('chat');
+                                   } else {
+                                     setSelectedAction('chat');
+                                   }
+                                 }}
+                               >
+                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${selectedAction === 'chat' ? 'bg-anthropic-terracotta text-white' : 'bg-anthropic-warm-sand/50 text-anthropic-terracotta'}`}>
+                                   <Sparkles size={20} className="currentColor" />
+                                 </div>
+                                 <h3 className="font-semibold text-anthropic-near-black mb-1">Chat Feature</h3>
+                                 <p className="text-[12px] text-anthropic-stone-gray line-clamp-2">Interact with AI to analyze your data.</p>
+                               </div>
+                             </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -371,6 +494,20 @@ function App() {
                       {/* Analysis Meta Header - Integrated */}
                       <div className="px-4 sm:px-8 py-4 border-b border-anthropic-border-cream flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 bg-anthropic-ivory/50">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                          {/* ← Back to action selector */}
+                          <button
+                            onClick={() => {
+                              setCurrentView('new');
+                              setShowChat(false);
+                              setSelectedAction(null);
+                            }}
+                            title="Back to action selector"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/40 border border-transparent hover:border-anthropic-border-cream rounded-lg text-[11px] font-semibold uppercase tracking-tight transition-all shrink-0"
+                          >
+                            <ArrowLeft size={13} />
+                            <span>Back</span>
+                          </button>
+
                           <h2 className="text-feature !text-[1rem] font-serif line-clamp-2 md:truncate max-w-md">
                             {viewingHistoryItem?.query || prompt}
                           </h2>
@@ -380,10 +517,24 @@ function App() {
                             </span>
                           </div>
                         </div>
-                        
+
                         {/* Right Side Actions */}
                         <div className="flex items-center flex-wrap gap-3">
-                          {!showChat && analysisData && !loading && (
+                          {/* Switch between Charts ↔ Chat */}
+                          {analysisData && !loading && selectedAction === 'chat' && (
+                            <button
+                              onClick={() => {
+                                setShowChat(false);
+                                setSelectedAction('charts');
+                              }}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-anthropic-warm-sand text-anthropic-near-black border border-anthropic-border-warm rounded-lg text-[11px] font-bold uppercase tracking-tight hover:bg-anthropic-warm-sand/50 transition-all shadow-sm shrink-0"
+                            >
+                              <Zap size={14} className="text-anthropic-terracotta shrink-0" />
+                              <span className="whitespace-nowrap">View Charts</span>
+                            </button>
+                          )}
+
+                          {!showChat && analysisData && !loading && selectedAction === 'charts' && (
                             <button
                               onClick={() => setShowChat(true)}
                               className="flex items-center gap-2 px-3 py-1.5 bg-anthropic-warm-sand text-anthropic-near-black border border-anthropic-border-warm rounded-lg text-[11px] font-bold uppercase tracking-tight hover:bg-anthropic-warm-sand/50 transition-all shadow-sm shrink-0"
@@ -393,8 +544,21 @@ function App() {
                             </button>
                           )}
 
+                          {analysisData && !loading && selectedAction === 'charts' && (
+                            <button
+                              onClick={() => {
+                                setSelectedAction('chat');
+                                setShowChat(true);
+                              }}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-anthropic-warm-sand text-anthropic-near-black border border-anthropic-border-warm rounded-lg text-[11px] font-bold uppercase tracking-tight hover:bg-anthropic-warm-sand/50 transition-all shadow-sm shrink-0"
+                            >
+                              <X size={14} className="text-anthropic-terracotta shrink-0" />
+                              <span className="whitespace-nowrap">Close Charts</span>
+                            </button>
+                          )}
+
                           {/* Result Tabs */}
-                          {analysisData && !loading && (
+                          {analysisData && !loading && selectedAction !== 'chat' && (
                             <div className="flex items-center gap-1 bg-white/80 rounded-lg p-0.5 border border-anthropic-border-cream shrink-0">
                               {['charts', 'raw'].map(tab => (
                                 <button
@@ -418,12 +582,12 @@ function App() {
                 </div>
 
                 {/* Draggable Divider */}
-                {showChat && currentView === 'result' && !loading && (
-                  <div 
+                {showChat && currentView === 'result' && !loading && selectedAction !== 'chat' && (
+                  <div
                     onMouseDown={handleMouseDown}
                     className={`hidden lg:flex w-1 hover:w-1.5 bg-anthropic-border-cream hover:bg-anthropic-terracotta/40 transition-all cursor-col-resize items-center justify-center relative group z-10 ${isResizing ? 'bg-anthropic-terracotta/40 w-1.5' : ''}`}
                   >
-                    <div className={`absolute top-1/2 -translate-y-1/2 flex items-center justify-center gap-0.5 px-1 py-4 bg-white border border-anthropic-border-cream rounded-full shadow-sm transition-all ${isResizing ? 'scale-110 shadow-md border-anthropic-terracotta/30' : 'opacity-0 group-hover:opacity-100'}`}>
+                    <div className={`absolute top-1/2 -translate-y-1/2 flex items-center justify-center gap-0.5 px-1 py-4 bg-white border border-anthropic-border-cream shadow-sm transition-all ${isResizing ? 'scale-110 shadow-md border-anthropic-terracotta/30' : 'opacity-0 group-hover:opacity-100'}`}>
                       <div className="flex flex-col gap-1">
                         <div className="w-0.5 h-0.5 rounded-full bg-anthropic-stone-gray" />
                         <div className="w-0.5 h-0.5 rounded-full bg-anthropic-stone-gray" />
@@ -440,14 +604,35 @@ function App() {
 
                 {/* Right Side: Chat Column */}
                 {showChat && currentView === 'result' && !loading && (
-                  <div 
+                  <div
                     className={`bg-anthropic-ivory/50 flex flex-col animate-fade-in min-h-0 overflow-hidden w-full lg:w-[var(--chat-width)]`}
-                    style={{ '--chat-width': `${100 - splitRatio}%` }}
+                    style={{ '--chat-width': selectedAction === 'chat' ? '100%' : `${100 - splitRatio}%` }}
                   >
-                    <Chat 
-                      datasetId={datasetId} 
-                      onClose={() => setShowChat(false)}
-                      initialSummary={analysisData ? "I've analysed your dataset. Here's what I found — feel free to ask follow-up questions!" : null}
+                    <Chat
+                      key={datasetId}
+                      datasetId={datasetId}
+                      onClose={() => {
+                        setShowChat(false);
+                        // Bug 2 fix: when closing a chat-only session,
+                        // go back to the action-cards welcome screen so
+                        // the background is never blank.
+                        if (selectedAction === 'chat') {
+                          setSelectedAction(null);
+                          setCurrentView('new');
+                        }
+                      }}
+                      // Bug 1 fix: auto-fire the typed prompt as first message
+                      initialQuery={chatInitialQuery}
+                      onInitialQueryFired={() => setChatInitialQuery(null)}
+                      initialSummary={
+                        !chatInitialQuery && analysisData
+                          ? "I've analysed your dataset. Here's what I found — feel free to ask follow-up questions!"
+                          : null
+                      }
+                      onShowCharts={selectedAction === 'chat' ? () => {
+                        setSelectedAction('charts');
+                        setShowChat(true); // Keep chat open, but split with charts
+                      } : null}
                     />
                   </div>
                 )}
@@ -464,23 +649,76 @@ function App() {
                 </div>
               )}
 
-              {/* Universal Bottom Input Bar (Hidden on Mobile when Chat is open) */}
-              <div className={`${showChat && currentView === 'result' ? 'hidden lg:block' : 'block'}`}>
-                <BottomInputBar 
-                  file={file}
-                  setFile={setFile}
-                  prompt={prompt}
-                  setPrompt={setPrompt}
-                  onExecute={handleAnalyze}
-                  loading={loading}
-                  isUploading={isUploading}
-                  onCancel={handleCancel}
-                  isCancelling={isCancelling}
-                />
-                
-                {/* Extra spacing */}
-                <div className="h-12" />
-              </div>
+              {/* Hidden File Input for "Upload Data" Card */}
+              <input
+                type="file"
+                ref={fileInputAppRef}
+                onChange={(e) => {
+                  const uploadedFile = e.target.files[0];
+                  if (uploadedFile) setFile(uploadedFile);
+                }}
+                className="hidden"
+                accept=".csv,.xlsx,.json"
+              />
+
+              {/* Universal Bottom Input Bar */}
+              {(currentView !== 'result' && selectedAction !== null) && (
+                <div className="block animate-fade-in-up">
+
+                  {/* ── Mode Toggle Tabs ── */}
+                  {!loading && (
+                    <div className="flex justify-center mb-2 px-4 animate-fade-in">
+                      <div className="inline-flex items-center gap-1 bg-white border border-anthropic-border-cream rounded-2xl p-1 shadow-sm">
+                        {/* Generate Charts tab */}
+                        <button
+                          onClick={() => setSelectedAction('charts')}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all duration-200 ${
+                            selectedAction === 'charts'
+                              ? 'bg-anthropic-near-black text-white shadow-sm'
+                              : 'text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/40'
+                          }`}
+                        >
+                          <Zap size={13} className={selectedAction === 'charts' ? 'text-white' : 'text-anthropic-terracotta'} />
+                          Generate Charts
+                        </button>
+
+                        {/* Chat Feature tab */}
+                        <button
+                          onClick={() => setSelectedAction('chat')}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all duration-200 ${
+                            selectedAction === 'chat'
+                              ? 'bg-anthropic-near-black text-white shadow-sm'
+                              : 'text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/40'
+                          }`}
+                        >
+                          <Sparkles size={13} className={selectedAction === 'chat' ? 'text-white' : 'text-anthropic-terracotta'} />
+                          Chat Feature
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <BottomInputBar
+                    file={file}
+                    setFile={setFile}
+                    prompt={prompt}
+                    setPrompt={setPrompt}
+                    onExecute={handleAnalyze}
+                    loading={loading}
+                    isUploading={isUploading}
+                    onCancel={handleCancel}
+                    isCancelling={isCancelling}
+                    placeholder={
+                      selectedAction === 'chat'
+                        ? "Enter prompt to chat with AI..."
+                        : "Enter prompt to generate charts..."
+                    }
+                  />
+
+                  {/* Extra spacing */}
+                  <div className="h-12" />
+                </div>
+              )}
             </div>
           </main>
         )}

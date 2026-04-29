@@ -2,8 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Search,
-  BarChart3,
-  History,
   Settings,
   Database,
   ChevronRight,
@@ -17,31 +15,72 @@ import {
   Sun,
 } from "lucide-react";
 
+/* Tooltip that appears on the right side when sidebar is collapsed */
+const CollapsedTooltip = ({ label }) => (
+  <span
+    className="
+      pointer-events-none absolute left-full ml-3 z-[9999]
+      px-2.5 py-1 rounded-lg
+      text-[11px] font-semibold whitespace-nowrap
+      opacity-0 group-hover:opacity-100
+      translate-x-[-4px] group-hover:translate-x-0
+      transition-all duration-150
+      shadow-md
+    "
+    style={{
+      background: 'var(--bg-popover, #F5F0EA)',
+      color: 'var(--text-primary, #0D0F1A)',
+      border: '1px solid var(--border-color, rgba(0,0,0,0.08))',
+    }}
+  >
+    {label}
+  </span>
+);
+
 const SidebarItem = ({ icon: Icon, label, active = false, onClick, isCollapsed }) => (
   <div
     onClick={onClick}
-    title={isCollapsed ? label : ""}
     className={`
-    flex items-center group gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all duration-300
-    ${
-      active
+      relative flex items-center group gap-3 px-4 py-3 rounded-xl cursor-pointer
+      transition-all duration-200
+      ${active
         ? "sidebar-item-active"
         : "text-anthropic-olive-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/50"
-    }
-    ${isCollapsed ? "justify-center px-2" : ""}
-  `}
+      }
+      ${isCollapsed ? "justify-center !px-0" : ""}
+    `}
   >
     <Icon
       size={18}
-      className={`${active ? "text-anthropic-near-black" : "text-anthropic-stone-gray group-hover:text-anthropic-near-black"} transition-colors shrink-0`}
+      className={`${active
+          ? "text-anthropic-near-black"
+          : "text-anthropic-stone-gray group-hover:text-anthropic-near-black"
+        } transition-colors shrink-0`}
     />
-    {!isCollapsed && <span className="text-body-sm font-medium flex-1 truncate">{label}</span>}
+
+    {/* Label: animate with opacity + max-width, NOT conditional render, so layout is preserved */}
+    <span
+      className="text-body-sm font-medium flex-1 truncate transition-all duration-200 leading-none"
+      style={{
+        opacity: isCollapsed ? 0 : 1,
+        maxWidth: isCollapsed ? 0 : '160px',
+        overflow: 'hidden',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </span>
+
     {active && !isCollapsed && (
       <ChevronRight
         size={14}
-        className="text-anthropic-near-black opacity-40"
+        className="text-anthropic-near-black opacity-40 shrink-0 transition-all duration-200"
+        style={{ opacity: isCollapsed ? 0 : undefined, width: isCollapsed ? 0 : undefined }}
       />
     )}
+
+    {/* Tooltip only in collapsed state */}
+    {isCollapsed && <CollapsedTooltip label={label} />}
   </div>
 );
 
@@ -84,126 +123,151 @@ const Sidebar = ({
 
       <div
         className={`
-                fixed left-0 top-0 z-40 h-screen
-                bg-anthropic-ivory border-r border-anthropic-border-cream
-                flex flex-col
-                transition-all duration-300 ease-in-out
-                ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-                ${isCollapsed ? "w-[56px] p-2" : "w-[220px] p-6"}
-            `}
+          fixed left-0 top-0 z-40 h-screen
+          bg-anthropic-ivory border-r border-anthropic-border-cream
+          flex flex-col overflow-visible
+          transition-all duration-200 ease-in-out
+          ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+        `}
+        style={{ width: isCollapsed ? '56px' : '220px', padding: isCollapsed ? '8px' : '24px' }}
       >
-        {/* Toggle Button */}
+        {/* Toggle Button — pinned to right edge, vertically centred */}
         <button
           onClick={onToggleCollapse}
-          className={`
-            hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 
-            bg-anthropic-ivory border border-anthropic-border-cream rounded-full 
-            items-center justify-center text-anthropic-stone-gray hover:text-anthropic-near-black 
-            hover:bg-anthropic-warm-sand shadow-whisper z-50 transition-all
-          `}
+          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className="
+            hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6
+            bg-anthropic-ivory border border-anthropic-border-cream
+            items-center justify-center text-anthropic-stone-gray
+            hover:text-anthropic-near-black hover:bg-anthropic-warm-sand
+            shadow-sm z-50 transition-all duration-150
+          "
         >
-          {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
         </button>
 
-        <div className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} mb-10`}>
+        {/* Brand / Logo area */}
+        <div
+          className={`flex items-center mb-8 transition-all duration-200 ${isCollapsed ? 'justify-center' : 'justify-between'
+            }`}
+        >
           <div
-            className="flex items-center gap-2.5 cursor-pointer"
-            onClick={() => onNavigate("dashboard")}
+            className="flex items-center gap-2.5 cursor-pointer min-w-0"
+            onClick={() => onNavigate('dashboard')}
           >
-            {/* Logo placeholder - User will provide logo later */}
-            {!isCollapsed && (
-              <div>
-                <h1 className="text-sub-small !text-[1.2rem] !font-serif tracking-tight leading-none">
-                  javaX
-                </h1>
-                <p className="text-overline !text-[8px] text-anthropic-stone-gray mt-0.5">
-                  AI Data Engine
-                </p>
-              </div>
-            )}
-          </div>
-          {/* Close button for mobile */}
-          {!isCollapsed && (
-            <button
-              onClick={onClose}
-              className="lg:hidden p-1 text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg"
+            {/* Icon mark — always visible */}
+            <div className="w-7 h-7 rounded-lg bg-anthropic-terracotta/10 border border-anthropic-terracotta/20 flex items-center justify-center shrink-0">
+              <Database size={14} className="text-anthropic-terracotta" />
+            </div>
+
+            {/* Full brand name — fades out when collapsed */}
+            <div
+              className="overflow-hidden transition-all duration-200 leading-none"
+              style={{ opacity: isCollapsed ? 0 : 1, maxWidth: isCollapsed ? 0 : '140px' }}
             >
-              <X size={20} />
-            </button>
+              <h1 className="text-sub-small !text-[1.1rem] !font-serif tracking-tight leading-none whitespace-nowrap">
+                JavaX
+              </h1>
+              <p className="text-overline !text-[8px] text-anthropic-stone-gray mt-0.5 whitespace-nowrap">
+                AI Data Engine
+              </p>
+            </div>
+          </div>
+
+          {/* Close button for mobile — hidden when collapsed */}
+          <button
+            onClick={onClose}
+            className="lg:hidden p-1 text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg transition-all duration-200"
+            style={{ opacity: isCollapsed ? 0 : 1, width: isCollapsed ? 0 : undefined, overflow: 'hidden' }}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* New Analysis button */}
+        <div className="relative group/newbtn mb-6">
+          <button
+            onClick={() => {
+              onNewAnalysis();
+              onClose();
+            }}
+            className="
+              w-full flex items-center justify-center gap-2 py-3
+              bg-anthropic-near-black text-anthropic-ivory rounded-xl font-medium text-body-sm
+              hover:bg-anthropic-charcoal-warm transition-all duration-200 active:scale-95 shadow-whisper
+            "
+            style={{ paddingLeft: isCollapsed ? 0 : undefined, paddingRight: isCollapsed ? 0 : undefined }}
+          >
+            <Plus size={18} className="shrink-0" />
+            <span
+              className="overflow-hidden whitespace-nowrap transition-all duration-200"
+              style={{ opacity: isCollapsed ? 0 : 1, maxWidth: isCollapsed ? 0 : '120px' }}
+            >
+              New Analysis
+            </span>
+          </button>
+          {/* Tooltip for collapsed state */}
+          {isCollapsed && (
+            <span
+              className="
+                pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-[9999]
+                px-2.5 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap
+                opacity-0 group-hover/newbtn:opacity-100
+                translate-x-[-4px] group-hover/newbtn:translate-x-0
+                transition-all duration-150 shadow-md
+              "
+              style={{
+                background: 'var(--bg-popover, #F5F0EA)',
+                color: 'var(--text-primary, #0D0F1A)',
+                border: '1px solid var(--border-color, rgba(0,0,0,0.08))',
+              }}
+            >
+              New Analysis
+            </span>
           )}
         </div>
 
-        <button
-          onClick={() => {
-            onNewAnalysis();
-            onClose();
-          }}
-          title={isCollapsed ? "New Analysis" : ""}
-          className={`
-            w-full mb-8 flex items-center justify-center gap-2 py-3 
-            bg-anthropic-near-black text-anthropic-ivory rounded-xl font-medium text-body-sm 
-            hover:bg-anthropic-charcoal-warm transition-all active:scale-95 shadow-whisper
-            ${isCollapsed ? "px-0" : ""}
-          `}
+        <nav
+          className="flex flex-col flex-1 min-h-0 -mx-2 px-2"
+          style={{ overflowX: 'visible' }}
         >
-          <Plus size={18} />
-          {!isCollapsed && "New Analysis"}
-        </button>
-
-        <nav className="flex-1 overflow-y-auto space-y-1 -mx-2 px-2 scrollbar-hide">
-          {!isCollapsed && (
-            <p className="text-overline text-anthropic-stone-gray ml-4 mb-3 uppercase tracking-widest text-[9px]">
-              Menu
-            </p>
-          )}
-          <SidebarItem
-            icon={LayoutDashboard}
-            label="Dashboard"
-            active={activePage === "dashboard"}
-            onClick={() => {
-              onNavigate("dashboard");
-              onClose();
-            }}
-            isCollapsed={isCollapsed}
-          />
-          <SidebarItem
-            icon={Search}
-            label="Search"
-            active={activePage === "search"}
-            onClick={() => {
-              onNavigate("search");
-              onClose();
-            }}
-            isCollapsed={isCollapsed}
-          />
-          <SidebarItem
-            icon={BarChart3}
-            label="Analytics"
-            active={activePage === "analytics"}
-            onClick={() => {
-              onNavigate("analytics");
-              onClose();
-            }}
-            isCollapsed={isCollapsed}
-          />
-          <SidebarItem
-            icon={History}
-            label="History"
-            active={activePage === "history"}
-            onClick={() => {
-              onNavigate("history");
-              onClose();
-            }}
-            isCollapsed={isCollapsed}
-          />
-
-          {history.length > 0 && !isCollapsed && (
-            <div className="pt-6 mt-6 border-t border-anthropic-border-cream">
+          {/* Menu items */}
+          <div className="space-y-1" style={{ overflowX: 'visible' }}>
+            {!isCollapsed && (
               <p className="text-overline text-anthropic-stone-gray ml-4 mb-3 uppercase tracking-widest text-[9px]">
+                Menu
+              </p>
+            )}
+            <SidebarItem
+              icon={LayoutDashboard}
+              label="Dashboard"
+              active={activePage === "dashboard"}
+              onClick={() => {
+                onNavigate("dashboard");
+                onClose();
+              }}
+              isCollapsed={isCollapsed}
+            />
+            <SidebarItem
+              icon={Search}
+              label="Search"
+              active={activePage === "search"}
+              onClick={() => {
+                onNavigate("search");
+                onClose();
+              }}
+              isCollapsed={isCollapsed}
+            />
+          </div>
+
+          {/* Recent Chats — scrollable, fills remaining space */}
+          {history.length > 0 && !isCollapsed && (
+            <div className="flex flex-col min-h-0 pt-5 mt-5 border-t border-anthropic-border-cream flex-1">
+              <p className="text-overline text-anthropic-stone-gray ml-4 mb-2 uppercase tracking-widest text-[9px] shrink-0">
                 Recent
               </p>
-              <div className="space-y-1">
-                {history.slice(0, 5).map((item) => (
+              <div className="flex-1 overflow-y-auto scrollbar-hide space-y-0.5 pr-1">
+                {history.map((item) => (
                   <div
                     key={item.task_id}
                     onClick={() => {
@@ -236,21 +300,21 @@ const Sidebar = ({
                 <p className="text-[9px] font-bold text-anthropic-terracotta mt-1 uppercase tracking-tighter">Administrator</p>
               </div>
               <div className="p-1.5">
-                <button 
+                <button
                   onClick={() => { onNavigate("settings"); setShowUserPopover(false); }}
                   className="w-full flex items-center gap-3 px-3 py-2 text-[12px] text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg transition-colors text-left"
                 >
                   <Settings size={14} className="text-anthropic-stone-gray" />
                   Settings
                 </button>
-                <button 
+                <button
                   onClick={() => { onNavigate("profile"); setShowUserPopover(false); }}
                   className="w-full flex items-center gap-3 px-3 py-2 text-[12px] text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg transition-colors text-left"
                 >
                   <User size={14} className="text-anthropic-stone-gray" />
                   Profile
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     const html = document.documentElement;
                     const currentTheme = html.getAttribute('data-theme');
@@ -266,7 +330,7 @@ const Sidebar = ({
                 </button>
               </div>
               <div className="p-1.5 border-t border-anthropic-border-cream">
-                <button 
+                <button
                   className="w-full flex items-center gap-3 px-3 py-2 text-[12px] text-anthropic-terracotta hover:bg-anthropic-terracotta/10 rounded-lg transition-colors text-left font-medium"
                 >
                   <LogOut size={14} />
@@ -276,7 +340,7 @@ const Sidebar = ({
             </div>
           )}
 
-          <div 
+          <div
             onClick={() => setShowUserPopover(!showUserPopover)}
             className={`
               flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border border-transparent

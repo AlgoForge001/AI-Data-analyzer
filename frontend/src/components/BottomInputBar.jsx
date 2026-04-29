@@ -10,7 +10,8 @@ const BottomInputBar = ({
   loading,
   isUploading,
   onCancel,
-  isCancelling
+  isCancelling,
+  placeholder = "Describe what you want to analyse..."
 }) => {
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
@@ -92,7 +93,7 @@ const BottomInputBar = ({
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Describe what you want to analyse..."
+            placeholder={placeholder}
             className="w-full bg-transparent border-none focus:ring-0 text-[14px] sm:text-body-sm py-2 px-1 resize-none max-h-[120px] scrollbar-hide text-anthropic-near-black placeholder:text-anthropic-stone-gray"
             rows={1}
           />

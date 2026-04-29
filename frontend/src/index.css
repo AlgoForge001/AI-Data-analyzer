@@ -134,7 +134,6 @@
     background-color: var(--bg-input) !important;
     color: var(--text-primary) !important;
     border: 1px solid var(--border-color) !important;
-    border-radius: 12px !important;
     padding: 10px 16px !important;
     font-size: 14px !important;
     transition: border-color 200ms ease, box-shadow 200ms ease !important;
@@ -194,13 +193,11 @@
   .p-6.bg-white.border,
   .bg-white\/60,
   .bg-white\/40,
-  .bg-white\/80,
-  .bg-anthropic-ivory {
+  .bg-white\/80 {
     background-color: var(--bg-card) !important;
     backdrop-filter: var(--glass-blur) !important;
     -webkit-backdrop-filter: var(--glass-blur) !important;
     border: 1px solid var(--border-color) !important;
-    border-radius: 16px !important;
     box-shadow: var(--shadow) !important;
   }
 
@@ -227,6 +224,7 @@
     border-right: 1px solid var(--border-color) !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+    overflow: visible !important;
   }
 
   /* Sidebar Nav Items */

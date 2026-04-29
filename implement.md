@@ -1,6 +1,6 @@
 # javaX Dashboard — Implementation Spec
 > Handoff document for Antigravity · Version 1.0
-(use svg , emoji not allowed)
+(use svg , emoji not   allowed)
 ---
 
 ## Overview of Changes
