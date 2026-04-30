@@ -261,7 +261,18 @@ function App() {
           const blob = await fileRes.blob();
           const disposition = fileRes.headers.get('Content-Disposition') || '';
           const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
-          const filename = filenameMatch ? filenameMatch[1] : 'data.csv';
+          let filename = filenameMatch ? filenameMatch[1] : null;
+          
+          if (!filename) {
+            if (viewingHistoryItem && viewingHistoryItem.filename) {
+              filename = viewingHistoryItem.filename;
+            } else if (blob.type.includes('spreadsheetml') || blob.type.includes('excel')) {
+              filename = 'data.xlsx';
+            } else {
+              filename = 'data.csv';
+            }
+          }
+          
           activeFile = new File([blob], filename, { type: blob.type });
           fileRef.current = activeFile; // Cache for future follow-ups
         }
@@ -343,7 +354,7 @@ function App() {
       resetState();
       fetchHistory();
     }
-  }, [fetchHistory, datasetId]);
+  }, [fetchHistory, datasetId, viewingHistoryItem]);
 
   const handleLoadHistoryItem = useCallback(async (taskId, mode = null) => {
     setLoading(true);
