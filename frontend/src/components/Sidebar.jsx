@@ -14,6 +14,8 @@ import {
   Moon,
   Sun,
   Sparkles,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 
 /* Tooltip that appears on the right side when sidebar is collapsed */
@@ -98,7 +100,12 @@ const Sidebar = ({
 }) => {
   const [showUserPopover, setShowUserPopover] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState(null);
-  const [activeMenuPos, setActiveMenuPos] = useState({ top: 0, left: 0 });
+  const [activeMenuPos, setActiveMenuPos] = useState({ top: 0 });
+
+  // Track actual sidebar pixel width so popup can transition smoothly with it
+  const SIDEBAR_EXPANDED_W = 220;
+  const SIDEBAR_COLLAPSED_W = 56;
+  const POPUP_GAP = 10; // px gap between sidebar edge and popup
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof document !== 'undefined') {
@@ -115,9 +122,15 @@ const Sidebar = ({
     return () => observer.disconnect();
   }, []);
 
+  // Close popup on outside click, but NOT when clicking the toggle button or the popup itself
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (activeMenuId && !event.target.closest('.history-hover-card') && !event.target.closest('.history-item-container')) {
+      if (
+        activeMenuId &&
+        !event.target.closest('.history-hover-card') &&
+        !event.target.closest('.history-item-container') &&
+        !event.target.closest('.sidebar-toggle-btn')
+      ) {
         setActiveMenuId(null);
       }
     };
@@ -127,14 +140,28 @@ const Sidebar = ({
 
   const handleItemClick = (e, item) => {
     e.stopPropagation();
+    // Toggle off if same item clicked again
     if (activeMenuId === item.task_id) {
       setActiveMenuId(null);
       return;
     }
     const rect = e.currentTarget.getBoundingClientRect();
     setActiveMenuId(item.task_id);
-    setActiveMenuPos({ top: rect.top + rect.height / 2, left: rect.right });
+    // Store the vertical midpoint of the clicked row — left is derived reactively from sidebar width
+    setActiveMenuPos({ top: rect.top + rect.height / 2 });
+
+    // Change 2: Auto-load dashboard + charts immediately on click
+    onHistoryItemClick(item.task_id, 'charts');
+
+    // On mobile, close the sidebar so the dashboard is immediately visible
+    if (window.innerWidth < 1024) {
+      onClose();
+    }
   };
+
+  // Compute the popup's left position reactively based on current sidebar state
+  // This matches the sidebar's 200ms transition so it slides smoothly
+  const popupLeft = isCollapsed ? SIDEBAR_COLLAPSED_W + POPUP_GAP : SIDEBAR_EXPANDED_W + POPUP_GAP;
 
   return (
     <>
@@ -154,60 +181,73 @@ const Sidebar = ({
           transition-all duration-200 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
-        style={{ width: isCollapsed ? '56px' : '220px', padding: isCollapsed ? '8px' : '24px' }}
+        style={{ width: isCollapsed ? `${SIDEBAR_COLLAPSED_W}px` : `${SIDEBAR_EXPANDED_W}px`, padding: isCollapsed ? '8px' : '24px' }}
       >
-        {/* Toggle Button — pinned to right edge, vertically centred */}
-        <button
-          onClick={onToggleCollapse}
-          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="
-            hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6
-            bg-anthropic-ivory border border-anthropic-border-cream
-            items-center justify-center text-anthropic-stone-gray
-            hover:text-anthropic-near-black hover:bg-anthropic-warm-sand
-            shadow-sm z-50 transition-all duration-150
-          "
-        >
-          {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
-        </button>
-
-        {/* Brand / Logo area */}
+        {/* ── TOP BAR: Toggle button + Logo/Brand ──────────────────────────── */}
+        {/* Change 1: Toggle button is now at the TOP of the sidebar, always visible */}
         <div
-          className={`flex items-center mb-8 transition-all duration-200 ${isCollapsed ? 'justify-center' : 'justify-between'
-            }`}
+          className={`flex items-center mb-6 transition-all duration-200 ${isCollapsed ? 'justify-center' : 'justify-between'}`}
         >
+          {/* Brand / Logo — fades out when collapsed */}
+          {!isCollapsed && (
+            <div
+              className="flex items-center gap-2.5 cursor-pointer min-w-0 flex-1"
+              onClick={() => onNavigate('dashboard')}
+            >
+              <div className="w-7 h-7 rounded-lg bg-anthropic-terracotta/10 border border-anthropic-terracotta/20 flex items-center justify-center shrink-0">
+                <Database size={14} className="text-anthropic-terracotta" />
+              </div>
+              <div className="overflow-hidden transition-all duration-200 leading-none">
+                <h1 className="text-sub-small !text-[1.1rem] !font-serif tracking-tight leading-none whitespace-nowrap">
+                  JavaX
+                </h1>
+                <p className="text-overline !text-[8px] text-anthropic-stone-gray mt-0.5 whitespace-nowrap">
+                  AI Data Engine
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Collapse toggle — desktop only, highest z-index so popup never covers it */}
+          <button
+            onClick={onToggleCollapse}
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="
+              sidebar-toggle-btn
+              hidden lg:flex w-7 h-7 rounded-lg shrink-0
+              bg-anthropic-warm-sand/60 border border-anthropic-border-cream
+              items-center justify-center text-anthropic-stone-gray
+              hover:text-anthropic-near-black hover:bg-anthropic-warm-sand
+              transition-all duration-150
+            "
+            style={{ zIndex: 60, position: 'relative' }}
+          >
+            {isCollapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
+          </button>
+
+          {/* Close button — mobile only */}
+          {!isCollapsed && (
+            <button
+              onClick={onClose}
+              className="lg:hidden p-1 text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg transition-all duration-200 ml-1"
+            >
+              <X size={20} />
+            </button>
+          )}
+        </div>
+
+        {/* Collapsed state: show icon-only logo mark */}
+        {isCollapsed && (
           <div
-            className="flex items-center gap-2.5 cursor-pointer min-w-0"
+            className="flex items-center justify-center mb-4 cursor-pointer"
             onClick={() => onNavigate('dashboard')}
           >
-            {/* Icon mark — always visible */}
-            <div className="w-7 h-7 rounded-lg bg-anthropic-terracotta/10 border border-anthropic-terracotta/20 flex items-center justify-center shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-anthropic-terracotta/10 border border-anthropic-terracotta/20 flex items-center justify-center">
               <Database size={14} className="text-anthropic-terracotta" />
             </div>
-
-            {/* Full brand name — fades out when collapsed */}
-            <div
-              className="overflow-hidden transition-all duration-200 leading-none"
-              style={{ opacity: isCollapsed ? 0 : 1, maxWidth: isCollapsed ? 0 : '140px' }}
-            >
-              <h1 className="text-sub-small !text-[1.1rem] !font-serif tracking-tight leading-none whitespace-nowrap">
-                JavaX
-              </h1>
-              <p className="text-overline !text-[8px] text-anthropic-stone-gray mt-0.5 whitespace-nowrap">
-                AI Data Engine
-              </p>
-            </div>
           </div>
-
-          {/* Close button for mobile — hidden when collapsed */}
-          <button
-            onClick={onClose}
-            className="lg:hidden p-1 text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg transition-all duration-200"
-            style={{ opacity: isCollapsed ? 0 : 1, width: isCollapsed ? 0 : undefined, overflow: 'hidden' }}
-          >
-            <X size={20} />
-          </button>
-        </div>
+        )}
 
         {/* New Analysis button */}
         <div className="relative group/newbtn mb-6">
@@ -284,7 +324,7 @@ const Sidebar = ({
             />
           </div>
 
-          {/* Recent Chats — scrollable, fills remaining space */}
+          {/* Recent Chats — only shown when expanded */}
           {history.length > 0 && !isCollapsed && (
             <div className="flex flex-col min-h-0 pt-5 mt-5 border-t border-anthropic-border-cream flex-1">
               <p className="text-overline text-anthropic-stone-gray ml-4 mb-2 uppercase tracking-widest text-[9px] shrink-0">
@@ -295,7 +335,12 @@ const Sidebar = ({
                   <div
                     key={item.task_id}
                     onClick={(e) => handleItemClick(e, item)}
-                    className="history-item-container group/history-item relative px-4 py-2 rounded-lg hover:bg-anthropic-warm-sand/30 transition-all duration-200 cursor-pointer"
+                    className={`history-item-container group/history-item relative px-4 py-2 rounded-lg transition-all duration-200 cursor-pointer
+                      ${activeMenuId === item.task_id
+                        ? 'bg-anthropic-warm-sand/60 text-anthropic-near-black'
+                        : 'hover:bg-anthropic-warm-sand/30'
+                      }
+                    `}
                   >
                     <div
                       className="text-[11px] text-anthropic-olive-gray group-hover/history-item:text-anthropic-near-black truncate transition-colors"
@@ -310,52 +355,6 @@ const Sidebar = ({
           )}
         </nav>
 
-        {/* Floating Menu Card outside Sidebar - Portaled via fixed positioning */}
-        {activeMenuId && (
-          <div
-            className="history-hover-card fixed z-[9999] flex flex-col gap-1.5 rounded-xl p-2 ml-4 min-w-[180px] animate-in fade-in slide-in-from-left-2 duration-200"
-            style={{
-              top: activeMenuPos.top,
-              left: activeMenuPos.left,
-              transform: 'translateY(-50%)'
-            }}
-          >
-            {/* Visual pointer/arrow */}
-            <div
-              className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 border-l border-b border-anthropic-border-cream dark:border-anthropic-border-dark rotate-45"
-              style={{ backgroundColor: 'var(--bg-popover)' }}
-            />
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onHistoryItemClick(activeMenuId, 'charts');
-                onClose();
-                setActiveMenuId(null);
-              }}
-              title="Open Charts"
-              className="w-full flex items-center gap-3 py-2 px-4 bg-anthropic-warm-sand/50 border border-anthropic-border-warm text-anthropic-near-black rounded-lg hover:bg-anthropic-warm-sand transition-all transform active:scale-95 z-10"
-            >
-              <LayoutDashboard size={14} className="shrink-0" />
-              <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">dashboard and charts</span>
-            </button>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onHistoryItemClick(activeMenuId, 'chat');
-                onClose();
-                setActiveMenuId(null);
-              }}
-              title="Open Assistant"
-              className="w-full flex items-center gap-3 py-2 px-4 bg-anthropic-terracotta text-white rounded-lg hover:opacity-90 transition-all transform active:scale-95 z-10 font-medium"
-            >
-              <Sparkles size={14} className="shrink-0" />
-              <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">chat analysis</span>
-            </button>
-          </div>
-        )}
-
         {/* User Info Card */}
         <div className="mt-auto relative">
           {/* User Popover */}
@@ -364,7 +363,6 @@ const Sidebar = ({
               absolute bottom-[calc(100%+12px)] left-0 w-full min-w-[200px]
               bg-anthropic-ivory border border-anthropic-border-cream rounded-2xl
               shadow-elegant animate-fade-in-up z-50 overflow-hidden user-popover
-              ${isCollapsed ? "left-0" : ""}
             `}>
               <div className="p-4 border-b border-anthropic-border-cream bg-anthropic-warm-sand/20">
                 <p className="text-[12px] font-semibold text-anthropic-near-black">Admin User</p>
@@ -438,6 +436,74 @@ const Sidebar = ({
           </div>
         </div>
       </div>
+
+      {/* ── HOVER POPUP CARD ──────────────────────────────────────────────────
+           Rendered OUTSIDE the sidebar div so it's never clipped.
+           z-index: 45 — always below the sidebar toggle button (z: 60 relative).
+           `left` uses a CSS transition matching the sidebar's 200ms so it
+           slides smoothly left/right whenever the sidebar collapses/expands.
+           Change 3: position is fully reactive to isCollapsed, never hidden. */}
+      {activeMenuId && (
+        <div
+          className="history-hover-card fixed flex flex-col gap-1.5 rounded-xl p-2 min-w-[188px]"
+          style={{
+            zIndex: 45,
+            top: activeMenuPos.top,
+            left: popupLeft,
+            transform: 'translateY(-50%)',
+            transition: 'left 200ms ease-in-out',
+            background: 'var(--bg-popover, #F5F0EA)',
+            border: '1px solid var(--border-color, rgba(0,0,0,0.08))',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          }}
+        >
+          {/* Visual pointer/arrow pointing left toward sidebar */}
+          <div
+            className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 border-l border-b border-anthropic-border-cream rotate-45"
+            style={{ backgroundColor: 'var(--bg-popover, #F5F0EA)' }}
+          />
+
+          {/* Close button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveMenuId(null);
+            }}
+            className="absolute -top-2 -right-2 w-5 h-5 bg-white border border-anthropic-border-cream rounded-full flex items-center justify-center text-anthropic-stone-gray hover:text-red-500 hover:bg-red-50 shadow-sm transition-colors"
+            title="Close options"
+          >
+            <X size={12} />
+          </button>
+
+          {/* Dashboard and Charts option */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onHistoryItemClick(activeMenuId, 'charts');
+              setActiveMenuId(null);
+            }}
+            title="Open Charts"
+            className="w-full flex items-center gap-3 py-2 px-4 bg-anthropic-warm-sand/50 border border-anthropic-border-warm text-anthropic-near-black rounded-lg hover:bg-anthropic-warm-sand transition-all transform active:scale-95"
+          >
+            <LayoutDashboard size={14} className="shrink-0" />
+            <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">dashboard and charts</span>
+          </button>
+
+          {/* Chat Analysis option */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onHistoryItemClick(activeMenuId, 'chat');
+              setActiveMenuId(null);
+            }}
+            title="Open Assistant"
+            className="w-full flex items-center gap-3 py-2 px-4 bg-anthropic-terracotta text-white rounded-lg hover:opacity-90 transition-all transform active:scale-95 font-medium"
+          >
+            <Sparkles size={14} className="shrink-0" />
+            <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">chat analysis</span>
+          </button>
+        </div>
+      )}
     </>
   );
 };

@@ -288,6 +288,7 @@ function App() {
     setAnalysisData(null);
     setPrompt('');
     setFile(null);
+    setDatasetId(null);        // ← critical: clear session so cards re-lock
     setCurrentView('new');
     setViewingHistoryItem(null);
     setShowChat(false);
@@ -368,7 +369,69 @@ function App() {
                   {/* Initial Welcome State */}
                   {currentView === 'new' && (
                     <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 text-center animate-fade-in">
-                      {/* Logo placeholder - User will provide logo later */}
+                      {/* Inject animations once */}
+                      <style>{`
+                        /* ── Animated grain texture on locked cards ───────────── */
+                        @keyframes grain {
+                          0%   { transform: translate(0,    0)   scale(1.5); }
+                          10%  { transform: translate(-2%, -3%)  scale(1.5); }
+                          20%  { transform: translate(3%,   1%)  scale(1.5); }
+                          30%  { transform: translate(-1%,  3%)  scale(1.5); }
+                          40%  { transform: translate(2%,  -2%)  scale(1.5); }
+                          50%  { transform: translate(-3%,  1%)  scale(1.5); }
+                          60%  { transform: translate(1%,   3%)  scale(1.5); }
+                          70%  { transform: translate(-2%, -1%)  scale(1.5); }
+                          80%  { transform: translate(3%,   2%)  scale(1.5); }
+                          90%  { transform: translate(-1%, -3%)  scale(1.5); }
+                          100% { transform: translate(0,    0)   scale(1.5); }
+                        }
+
+                        /* Grain pseudo-element — warm beige noise, very subtle */
+                        .action-card { position: relative; overflow: hidden; }
+                        .action-card.card-locked::before {
+                          content: '';
+                          position: absolute;
+                          inset: -25%;
+                          width: 150%; height: 150%;
+                          z-index: 1;
+                          pointer-events: none;
+                          opacity: 0.055;
+                          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='1 0 0 0 0.72 0 0.9 0 0 0.55 0 0 0.8 0 0.38 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+                          background-repeat: repeat;
+                          background-size: 200px 200px;
+                          animation: grain 0.45s steps(1) infinite;
+                          transition: opacity 0.3s ease;
+                        }
+                        .action-card.card-locked:hover::before { opacity: 0.09; }
+
+                        /* Card content layers */
+                        .action-card .card-content {
+                          position: relative; z-index: 2;
+                          transition: opacity 0.3s ease, transform 0.3s ease;
+                        }
+                        .action-card .card-hover-msg {
+                          position: absolute; inset: 0; z-index: 3;
+                          display: flex; align-items: center; justify-content: center;
+                          opacity: 0; transform: translateY(6px);
+                          transition: opacity 0.3s ease, transform 0.3s ease;
+                          pointer-events: none;
+                        }
+
+                        /* Crossfade on hover when locked */
+                        .action-card.card-locked:hover .card-content,
+                        .action-card.card-locked:focus .card-content {
+                          opacity: 0; transform: translateY(-6px);
+                        }
+                        .action-card.card-locked:hover .card-hover-msg,
+                        .action-card.card-locked:focus .card-hover-msg {
+                          opacity: 1; transform: translateY(0);
+                        }
+                        .action-card.card-locked:hover {
+                          border-color: rgba(184,92,69,0.3) !important;
+                          box-shadow: 0 0 0 2px rgba(184,92,69,0.08);
+                        }
+                      `}</style>
+
                       <h1 className="text-[2rem] md:text-[2.5rem] font-serif text-anthropic-near-black mb-4 tracking-tight">
                         How can I help with your data?
                       </h1>
@@ -378,14 +441,13 @@ function App() {
 
                       <div className="mt-8 md:mt-12 flex flex-col items-center gap-6 max-w-2xl w-full">
 
-                        {/* Simple Upload Button */}
+                        {/* Upload Data Button */}
                         <button
                           onClick={() => fileInputAppRef.current?.click()}
-                          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all shadow-sm max-w-full ${
-                            file 
-                              ? 'bg-anthropic-warm-sand border border-anthropic-terracotta/30 text-anthropic-near-black hover:bg-anthropic-warm-sand/70' 
-                              : 'bg-anthropic-near-black text-white hover:bg-anthropic-charcoal-warm'
-                          }`}
+                          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all shadow-sm max-w-full ${file
+                              ? 'bg-anthropic-warm-sand border border-anthropic-terracotta/30 text-anthropic-near-black hover:bg-anthropic-warm-sand/70'
+                              : 'bg-anthropic-near-black text-white hover:scale-105 active:scale-95'
+                            }`}
                         >
                           <Database size={16} className={`shrink-0 ${file ? 'text-anthropic-terracotta' : 'text-white'}`} />
                           <span className="text-[13px] font-medium truncate">
@@ -396,29 +458,17 @@ function App() {
                         {/* Actions (Hidden once an action is selected) */}
                         {!selectedAction && (
                           <>
+                            {/* Cards grid */}
+                            <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full transition-all duration-300 animate-fade-in-up">
 
-                            {/* No-data alert banner */}
-                            {noDataAlert && (
-                              <div className="w-full flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-[12px] font-medium animate-fade-in">
-                                <AlertCircle size={16} className="shrink-0 text-amber-500" />
-                                <span>Please upload a data file first before choosing an action.</span>
-                                <button onClick={() => setNoDataAlert(false)} className="ml-auto p-0.5 hover:bg-amber-100 rounded-md">
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            )}
-
-                            {/* Step 2: Actions */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full transition-all duration-300 animate-fade-in-up">
                               {/* Generate Charts card */}
                               <div
-                                className={`p-6 bg-white border ${selectedAction === 'charts' ? 'border-anthropic-terracotta shadow-md' : 'border-anthropic-border-cream'} rounded-2xl text-left hover:border-anthropic-border-warm transition-all cursor-pointer group ${!file && !datasetId ? 'opacity-50' : ''}`}
+                                className={`action-card ${!file && !datasetId ? 'card-locked' : ''} p-4 sm:p-6 bg-white border rounded-2xl text-left transition-all cursor-pointer group ${selectedAction === 'charts'
+                                    ? 'border-anthropic-terracotta shadow-md'
+                                    : 'border-anthropic-border-cream hover:border-anthropic-border-warm'
+                                  }`}
                                 onClick={() => {
-                                  if (!file && !datasetId) {
-                                    setNoDataAlert(true);
-                                    setTimeout(() => setNoDataAlert(false), 4000);
-                                    return;
-                                  }
+                                  if (!file && !datasetId) return;
                                   if (analysisData) {
                                     setCurrentView('result');
                                     setShowChat(false);
@@ -428,22 +478,31 @@ function App() {
                                   }
                                 }}
                               >
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${selectedAction === 'charts' ? 'bg-anthropic-terracotta text-white' : 'bg-anthropic-warm-sand/50 text-anthropic-terracotta'}`}>
-                                  <Zap size={20} className="currentColor" />
+                                {/* Normal card content — fades out on hover when locked */}
+                                <div className="card-content">
+                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${selectedAction === 'charts' ? 'bg-anthropic-terracotta text-white' : 'bg-anthropic-warm-sand/50 text-anthropic-terracotta'
+                                    }`}>
+                                    <Zap size={20} />
+                                  </div>
+                                  <h3 className="font-semibold text-anthropic-near-black mb-1">Generate Charts</h3>
+                                  <p className="text-[12px] text-anthropic-stone-gray line-clamp-2">Automatically generate charts and maps to reveal patterns.</p>
                                 </div>
-                                <h3 className="font-semibold text-anthropic-near-black mb-1">Generate Charts</h3>
-                                <p className="text-[12px] text-anthropic-stone-gray line-clamp-2">Automatically generate charts and maps to reveal patterns.</p>
+                                {/* Hover message — fades in on hover when locked */}
+                                {!file && !datasetId && (
+                                  <div className="card-hover-msg">
+                                    <span className="text-[13px] font-semibold text-[#b85c45] tracking-wide">Upload Data</span>
+                                  </div>
+                                )}
                               </div>
 
                               {/* Chat Feature card */}
                               <div
-                                className={`p-6 bg-white border ${selectedAction === 'chat' ? 'border-anthropic-terracotta shadow-md' : 'border-anthropic-border-cream'} rounded-2xl text-left hover:border-anthropic-border-warm transition-all cursor-pointer group ${!file && !datasetId ? 'opacity-50' : ''}`}
+                                className={`action-card ${!file && !datasetId ? 'card-locked' : ''} p-4 sm:p-6 bg-white border rounded-2xl text-left transition-all cursor-pointer group ${selectedAction === 'chat'
+                                    ? 'border-anthropic-terracotta shadow-md'
+                                    : 'border-anthropic-border-cream hover:border-anthropic-border-warm'
+                                  }`}
                                 onClick={() => {
-                                  if (!file && !datasetId) {
-                                    setNoDataAlert(true);
-                                    setTimeout(() => setNoDataAlert(false), 4000);
-                                    return;
-                                  }
+                                  if (!file && !datasetId) return;
                                   if (datasetId) {
                                     setChatInitialQuery(null);
                                     setShowChat(true);
@@ -454,13 +513,25 @@ function App() {
                                   }
                                 }}
                               >
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${selectedAction === 'chat' ? 'bg-anthropic-terracotta text-white' : 'bg-anthropic-warm-sand/50 text-anthropic-terracotta'}`}>
-                                  <Sparkles size={20} className="currentColor" />
+                                {/* Normal card content — fades out on hover when locked */}
+                                <div className="card-content">
+                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 ${selectedAction === 'chat' ? 'bg-anthropic-terracotta text-white' : 'bg-anthropic-warm-sand/50 text-anthropic-terracotta'
+                                    }`}>
+                                    <Sparkles size={20} />
+                                  </div>
+                                  <h3 className="font-semibold text-anthropic-near-black mb-1">Chat Feature</h3>
+                                  <p className="text-[12px] text-anthropic-stone-gray line-clamp-2">Interact with AI to analyze your data.</p>
                                 </div>
-                                <h3 className="font-semibold text-anthropic-near-black mb-1">Chat Feature</h3>
-                                <p className="text-[12px] text-anthropic-stone-gray line-clamp-2">Interact with AI to analyze your data.</p>
+                                {/* Hover message — fades in on hover when locked */}
+                                {!file && !datasetId && (
+                                  <div className="card-hover-msg">
+                                    <span className="text-[13px] font-semibold text-[#b85c45] tracking-wide">Upload Data</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
+
+
                           </>
                         )}
                       </div>
@@ -469,23 +540,23 @@ function App() {
 
                   {/* Results View */}
                   {currentView === 'result' && (
-                        <div className="flex-1 flex flex-col min-h-0 bg-white">
-                          {/* Analysis Header */}
-                          <div className="flex items-center justify-between px-6 py-4 border-b border-anthropic-border-cream bg-white/50 backdrop-blur-sm shrink-0 min-h-[72px]">
-                            {/* Left Side: Title & Filename */}
-                            <div className="flex items-center gap-3 min-w-0 flex-1 mr-4">
-                              <h2 className="text-feature !text-[1rem] font-serif line-clamp-1 md:truncate min-w-0 flex-1">
-                                {viewingHistoryItem?.query || prompt}
-                              </h2>
-                              <div className="flex items-center gap-2 text-anthropic-stone-gray text-[10px] uppercase tracking-wider shrink-0 hidden lg:flex">
-                                <span className="px-1.5 py-0.5 bg-anthropic-warm-sand/30 rounded border border-anthropic-border-cream truncate max-w-[120px]">
-                                  {viewingHistoryItem?.filename || file?.name}
-                                </span>
-                              </div>
-                            </div>
+                    <div className="flex-1 flex flex-col min-h-0 bg-white">
+                      {/* Analysis Header */}
+                      <div className="flex items-center justify-between px-6 py-4 border-b border-anthropic-border-cream bg-white/50 backdrop-blur-sm shrink-0 min-h-[72px]">
+                        {/* Left Side: Title & Filename */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1 mr-4">
+                          <h2 className="text-feature !text-[1rem] font-serif line-clamp-1 md:truncate min-w-0 flex-1">
+                            {viewingHistoryItem?.query || prompt}
+                          </h2>
+                          <div className="flex items-center gap-2 text-anthropic-stone-gray text-[10px] uppercase tracking-wider shrink-0 hidden lg:flex">
+                            <span className="px-1.5 py-0.5 bg-anthropic-warm-sand/30 rounded border border-anthropic-border-cream truncate max-w-[120px]">
+                              {viewingHistoryItem?.filename || file?.name}
+                            </span>
+                          </div>
+                        </div>
 
-                            {/* Right Side Actions */}
-                            <div className="flex items-center gap-2 shrink-0">
+                        {/* Right Side Actions */}
+                        <div className="flex items-center gap-2 shrink-0">
                           {/* Switch between Charts ↔ Chat */}
                           {analysisData && !loading && selectedAction === 'chat' && (
                             <button
@@ -512,14 +583,11 @@ function App() {
 
                           {analysisData && !loading && selectedAction === 'charts' && (
                             <button
-                              onClick={() => {
-                                setSelectedAction('chat');
-                                setShowChat(true);
-                              }}
+                              onClick={() => handleNewAnalysis()}
                               className="flex items-center gap-2 px-3 py-1.5 bg-anthropic-warm-sand text-anthropic-near-black border border-anthropic-border-warm rounded-lg text-[11px] font-bold uppercase tracking-tight hover:bg-anthropic-warm-sand/50 transition-all shadow-sm shrink-0"
                             >
                               <X size={14} className="text-anthropic-terracotta shrink-0" />
-                              <span className="whitespace-nowrap">Close Charts</span>
+                              <span className="whitespace-nowrap">Close chart</span>
                             </button>
                           )}
 
@@ -578,13 +646,10 @@ function App() {
                       key={datasetId}
                       datasetId={datasetId}
                       onClose={() => {
-                        setShowChat(false);
-                        // Fix: when closing a chat-only session,
-                        // completely reset to the new analysis state
-                        // to prevent lingering old data when starting over.
-                        if (selectedAction === 'chat') {
-                          handleNewAnalysis();
-                        }
+                        // Always do a full session reset when user explicitly
+                        // closes the chat panel — prevents stale datasetId
+                        // lingering on the dashboard welcome screen.
+                        handleNewAnalysis();
                       }}
                       // Bug 1 fix: auto-fire the typed prompt as first message
                       initialQuery={chatInitialQuery}
@@ -596,7 +661,7 @@ function App() {
                       }
                       onShowCharts={selectedAction === 'chat' ? () => {
                         setSelectedAction('charts');
-                        setShowChat(true); 
+                        setShowChat(true);
                       } : null}
                     />
                   </div>
@@ -638,8 +703,8 @@ function App() {
                         <button
                           onClick={() => setSelectedAction('charts')}
                           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all duration-200 ${selectedAction === 'charts'
-                              ? 'bg-anthropic-near-black text-white shadow-sm'
-                              : 'text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/40'
+                            ? 'bg-anthropic-near-black text-white shadow-sm'
+                            : 'text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/40'
                             }`}
                         >
                           <Zap size={13} className={selectedAction === 'charts' ? 'text-white' : 'text-anthropic-terracotta'} />
@@ -650,8 +715,8 @@ function App() {
                         <button
                           onClick={() => setSelectedAction('chat')}
                           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all duration-200 ${selectedAction === 'chat'
-                              ? 'bg-anthropic-near-black text-white shadow-sm'
-                              : 'text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/40'
+                            ? 'bg-anthropic-near-black text-white shadow-sm'
+                            : 'text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/40'
                             }`}
                         >
                           <Sparkles size={13} className={selectedAction === 'chat' ? 'text-white' : 'text-anthropic-terracotta'} />
