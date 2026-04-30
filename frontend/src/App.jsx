@@ -38,6 +38,7 @@ function App() {
   const [datasetId, setDatasetId] = useState(null);
   const [showChat, setShowChat] = useState(false);
   const [activePage, setActivePage] = useState('dashboard');
+  const [sessionHistory, setSessionHistory] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem('sidebarCollapsed') === 'true';
@@ -47,6 +48,7 @@ function App() {
   // chatInitialQuery: the prompt auto-fired when chat panel first opens (Bug 1)
   const [chatInitialQuery, setChatInitialQuery] = useState(null);
   const fileInputAppRef = useRef(null);
+  const fileRef = useRef(null); // Persist file for follow-up chart generation
   const [isResizing, setIsResizing] = useState(false);
   const [splitRatio, setSplitRatio] = useState(() => {
     const saved = localStorage.getItem('dashboardSplitRatio');
@@ -65,9 +67,11 @@ function App() {
     localStorage.setItem('dashboardSplitRatio', splitRatio);
   }, [splitRatio]);
 
-  // Reset selected action when file is removed
+  // Reset selected action when file is removed, persist file ref for follow-ups
   React.useEffect(() => {
-    if (!file) {
+    if (file) {
+      fileRef.current = file; // Persist for follow-up chart generation
+    } else {
       setSelectedAction(null);
     }
   }, [file]);
@@ -137,7 +141,10 @@ function App() {
 
   // ── start analysis ──
   const handleAnalyze = useCallback(async () => {
-    if (!file) {
+    // If we are in an existing session (datasetId exists) and want to generate more charts
+    const isExistingSession = !!datasetId;
+
+    if (!isExistingSession && !file) {
       alert('Please upload a file first!');
       return;
     }
@@ -153,18 +160,27 @@ function App() {
     stopPolling();
     setIsCancelling(false);
     setLoading(true);
-    setIsUploading(true);
+    setIsUploading(!isExistingSession);
     setError(null);
-    setAnalysisData(null);
-    setDatasetId(null);
+    if (!isExistingSession) {
+      setAnalysisData(null);
+      setDatasetId(null);
+    }
     setShowChat(false);
     setActivePage('dashboard');
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('query', prompt);
-
     try {
+      // Always use /start-analysis with FormData (works with deployed backend)
+      const activeFile = file || fileRef.current;
+      if (!activeFile) {
+        setError('No file available. Please upload a dataset first.');
+        resetState();
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', activeFile);
+      formData.append('query', prompt);
       const startRes = await fetch(`${API_URL}/start-analysis`, {
         method: 'POST',
         body: formData
@@ -190,6 +206,10 @@ function App() {
         const result = await statusRes.json();
         if (result.status === 'completed') {
           setAnalysisData(result.data);
+          setSessionHistory(prev => {
+            const newEntry = { query: prompt, data: result.data, timestamp: new Date().toISOString() };
+            return [...prev, newEntry];
+          });
           setDatasetId(result.dataset_id);
           setCurrentView('result');
           setViewingHistoryItem(null);
@@ -202,6 +222,7 @@ function App() {
             setChatInitialQuery(null);
             setShowChat(false);
           }
+          setPrompt(''); // Clear the prompt for the next interaction
           break;
         }
         if (result.status === 'cancelled') break;
@@ -215,7 +236,7 @@ function App() {
       resetState();
       fetchHistory();
     }
-  }, [file, prompt, selectedAction, fetchHistory]);
+  }, [file, prompt, selectedAction, fetchHistory, datasetId]);
 
   // ── cancel ──
   const handleCancel = useCallback(() => {
@@ -225,6 +246,104 @@ function App() {
     stopPolling();
     fetch(`${API_URL}/cancel/${taskId}`, { method: 'POST' }).catch(() => { });
   }, []);
+
+  // ── follow-up chart generation (inline prompt inside AnalysisOutput) ──
+  const handleChartFollowUp = useCallback(async (followUpPrompt) => {
+    if (!followUpPrompt) return;
+
+    let activeFile = fileRef.current;
+
+    // If no file in memory, try to download it from the backend (GridFS)
+    if (!activeFile && datasetId) {
+      try {
+        const fileRes = await fetch(`${API_URL}/get-file/${datasetId}`);
+        if (fileRes.ok) {
+          const blob = await fileRes.blob();
+          const disposition = fileRes.headers.get('Content-Disposition') || '';
+          const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+          const filename = filenameMatch ? filenameMatch[1] : 'data.csv';
+          activeFile = new File([blob], filename, { type: blob.type });
+          fileRef.current = activeFile; // Cache for future follow-ups
+        }
+      } catch (e) {
+        console.warn('[handleChartFollowUp] Could not download file from backend:', e);
+      }
+    }
+
+    if (!activeFile) {
+      console.error('[handleChartFollowUp] No file available');
+      setError('Cannot generate charts: No file available. Please start a new analysis with a file upload.');
+      return;
+    }
+
+    if (taskIdRef.current) {
+      await fetch(`${API_URL}/cancel/${taskIdRef.current}`, { method: 'POST' }).catch(() => { });
+    }
+
+    stopPolling();
+    setLoading(true);
+    setError(null);
+
+    // Optimistically append a pending entry so existing charts stay mounted
+    const pendingEntry = { query: followUpPrompt, data: null, timestamp: new Date().toISOString(), _pending: true };
+    setSessionHistory(prev => [...prev, pendingEntry]);
+
+    try {
+      // Use the standard /start-analysis endpoint with file
+      const formData = new FormData();
+      formData.append('file', activeFile);
+      formData.append('query', followUpPrompt);
+      const startRes = await fetch(`${API_URL}/start-analysis`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!startRes.ok) {
+        const text = await startRes.text();
+        throw new Error(text || `Server error: ${startRes.status}`);
+      }
+
+      const { task_id } = await startRes.json();
+      taskIdRef.current = task_id;
+      pollingRef.current = true;
+
+      while (pollingRef.current) {
+        await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+        if (!pollingRef.current) break;
+
+        const statusRes = await fetch(`${API_URL}/status/${task_id}`);
+        if (!statusRes.ok) throw new Error(`Status check failed: ${statusRes.status}`);
+
+        const result = await statusRes.json();
+        if (result.status === 'completed') {
+          setAnalysisData(result.data);
+          // Replace only the pending entry, keep all previous items intact
+          setSessionHistory(prev => {
+            const withoutPending = prev.filter(e => !e._pending);
+            const newEntry = { query: followUpPrompt, data: result.data, timestamp: new Date().toISOString() };
+            return [...withoutPending, newEntry];
+          });
+          setPrompt('');
+          break;
+        }
+        if (result.status === 'cancelled') {
+          setSessionHistory(prev => prev.filter(e => !e._pending));
+          break;
+        }
+        if (result.status === 'error') {
+          setSessionHistory(prev => prev.filter(e => !e._pending));
+          throw new Error(result.error || 'Analysis failed');
+        }
+      }
+    } catch (err) {
+      console.error('[handleChartFollowUp] Error:', err);
+      setError(err.message || 'Failed to connect to the analysis engine');
+      setSessionHistory(prev => prev.filter(e => !e._pending));
+    } finally {
+      resetState();
+      fetchHistory();
+    }
+  }, [fetchHistory, datasetId]);
 
   const handleLoadHistoryItem = useCallback(async (taskId, mode = null) => {
     setLoading(true);
@@ -242,10 +361,11 @@ function App() {
 
       if (item.status === 'completed' && item.data) {
         setAnalysisData(item.data);
+        setSessionHistory(item.interactions || []);
         setDatasetId(item.dataset_id);
         setViewingHistoryItem({ filename: item.filename, query: item.query });
         setCurrentView('result');
-        setPrompt(item.query || '');
+        setPrompt('');
 
         // Use requested mode or default to charts
         if (mode === 'chat') {
@@ -546,7 +666,7 @@ function App() {
                         {/* Left Side: Title & Filename */}
                         <div className="flex items-center gap-3 min-w-0 flex-1 mr-4">
                           <h2 className="text-feature !text-[1rem] font-serif line-clamp-1 md:truncate min-w-0 flex-1">
-                            {viewingHistoryItem?.query || prompt}
+                            {viewingHistoryItem?.query || (sessionHistory.length > 0 ? sessionHistory[0].query : prompt) || 'Analysis Session'}
                           </h2>
                           <div className="flex items-center gap-2 text-anthropic-stone-gray text-[10px] uppercase tracking-wider shrink-0 hidden lg:flex">
                             <span className="px-1.5 py-0.5 bg-anthropic-warm-sand/30 rounded border border-anthropic-border-cream truncate max-w-[120px]">
@@ -609,7 +729,14 @@ function App() {
                       </div>
 
                       <div className="flex-1 overflow-hidden relative">
-                        <AnalysisOutput data={analysisData} loading={loading} activeTab={activeResultTab} />
+                        <AnalysisOutput
+                          data={analysisData}
+                          history={sessionHistory}
+                          loading={loading}
+                          activeTab={activeResultTab}
+                          onSubmitPrompt={selectedAction === 'charts' ? handleChartFollowUp : undefined}
+                          isGenerating={loading}
+                        />
                       </div>
                     </div>
                   )}
@@ -691,12 +818,12 @@ function App() {
                 accept=".csv,.xlsx,.json"
               />
 
-              {/* Universal Bottom Input Bar */}
-              {(currentView !== 'result' && selectedAction !== null) && (
-                <div className="block animate-fade-in-up">
+              {/* Universal Bottom Input Bar — ONLY on dashboard welcome (not during active session) */}
+              {currentView !== 'result' && selectedAction !== null && (
+                <div className="block animate-fade-in-up bg-anthropic-ivory/50">
 
                   {/* ── Mode Toggle Tabs ── */}
-                  {!loading && (
+                  {!loading && currentView !== 'result' && (
                     <div className="flex justify-center mb-2 px-4 animate-fade-in">
                       <div className="inline-flex items-center gap-1 bg-white border border-anthropic-border-cream rounded-2xl p-1 shadow-sm">
                         {/* Generate Charts tab */}
@@ -739,7 +866,7 @@ function App() {
                     placeholder={
                       selectedAction === 'chat'
                         ? "Enter prompt to chat with AI..."
-                        : "Enter prompt to generate charts..."
+                        : "Enter prompt to generate additional charts..."
                     }
                   />
 

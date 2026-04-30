@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Plot from "react-plotly.js";
 import {
   TrendingUp,
@@ -13,17 +13,92 @@ import {
   Layout,
   Table as TableIcon,
   ChevronDown,
+  Zap,
+  Loader2,
+  Send,
 } from "lucide-react";
 
-const AnalysisOutput = ({ data, loading, activeTab = "summary" }) => {
+const InlineInputBar = ({ onSubmitPrompt, isGenerating }) => {
+  const [inlinePrompt, setInlinePrompt] = useState('');
+  const inlineTextareaRef = useRef(null);
+
+  // Auto-expand inline textarea
+  useEffect(() => {
+    if (inlineTextareaRef.current) {
+      inlineTextareaRef.current.style.height = 'auto';
+      inlineTextareaRef.current.style.height = `${Math.min(inlineTextareaRef.current.scrollHeight, 100)}px`;
+    }
+  }, [inlinePrompt]);
+
+  const handleInlineSubmit = () => {
+    if (!inlinePrompt.trim() || isGenerating || !onSubmitPrompt) return;
+    onSubmitPrompt(inlinePrompt.trim());
+    setInlinePrompt('');
+  };
+
+  const handleInlineKeyDown = (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handleInlineSubmit();
+    }
+  };
+
+  if (!onSubmitPrompt) return null;
+
+  return (
+    <div className="shrink-0 border-t border-anthropic-border-cream bg-white px-4 py-3">
+      <div className="max-w-5xl mx-auto flex items-end gap-2">
+        <div className="flex-1 bg-anthropic-warm-sand/20 rounded-xl px-3 py-1 border border-anthropic-border-cream focus-within:border-anthropic-terracotta/40 transition-all">
+          <textarea
+            ref={inlineTextareaRef}
+            value={inlinePrompt}
+            onChange={(e) => setInlinePrompt(e.target.value)}
+            onKeyDown={handleInlineKeyDown}
+            placeholder="Type a follow-up prompt to generate more charts..."
+            disabled={isGenerating}
+            className="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-[13px] py-2 resize-none max-h-[100px] scrollbar-hide text-anthropic-near-black placeholder:text-anthropic-stone-gray disabled:opacity-50"
+            rows={1}
+          />
+        </div>
+        <button
+          onClick={handleInlineSubmit}
+          disabled={!inlinePrompt.trim() || isGenerating}
+          className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-bold uppercase tracking-tight transition-all ${
+            !inlinePrompt.trim() || isGenerating
+              ? 'bg-anthropic-warm-sand/50 text-anthropic-stone-gray cursor-not-allowed'
+              : 'bg-anthropic-terracotta text-white hover:bg-anthropic-terracotta/90 active:scale-95 shadow-sm'
+          }`}
+        >
+          {isGenerating ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <Zap size={14} fill="currentColor" />
+          )}
+          <span className="hidden sm:inline">{isGenerating ? 'Generating...' : 'Execute'}</span>
+        </button>
+      </div>
+      {!isGenerating && inlinePrompt.trim() && (
+        <p className="text-[10px] text-anthropic-stone-gray text-center mt-1.5">
+          Press <span className="font-bold">Ctrl + Enter</span> to execute
+        </p>
+      )}
+    </div>
+  );
+};
+
+const AnalysisOutput = ({ data, loading, activeTab = "summary", history = [], onSubmitPrompt, isGenerating = false }) => {
   const [copied, setCopied] = useState(false);
   const [fullscreenChart, setFullscreenChart] = useState(null);
+  const bottomRef = useRef(null);
 
-  const hasCharts =
-    data?.charts && Array.isArray(data.charts) && data.charts.length > 0;
-  const hasSummary = data?.summary || data?.content;
-  const hasTables =
-    data?.tables && Array.isArray(data.tables) && data.tables.length > 0;
+  // Fallback to single data if no history provided
+  const items = history && history.length > 0 ? history : (data ? [{ query: data.query || "Analysis Result", data, timestamp: new Date().toISOString() }] : []);
+
+  useEffect(() => {
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [items]);
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
@@ -51,8 +126,8 @@ const AnalysisOutput = ({ data, loading, activeTab = "summary" }) => {
     document.body.removeChild(link);
   };
 
-  // ===== LOADING =====
-  if (loading) {
+  // ===== LOADING (only show full spinner on first load when no history exists) =====
+  if (loading && !items.length) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-20 animate-pulse">
         <div className="mb-6 p-5 bg-anthropic-terracotta/10 rounded-full border border-anthropic-terracotta/20">
@@ -72,7 +147,7 @@ const AnalysisOutput = ({ data, loading, activeTab = "summary" }) => {
   }
 
   // ===== EMPTY =====
-  if (!data) {
+  if (!items.length) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-center p-10 bg-anthropic-ivory/50">
         <div className="w-20 h-20 bg-anthropic-warm-sand/30 rounded-full flex items-center justify-center mb-6 border border-anthropic-border-cream">
@@ -90,231 +165,176 @@ const AnalysisOutput = ({ data, loading, activeTab = "summary" }) => {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-anthropic-ivory/30">
-      {/* ===== SUMMARY VIEW ===== */}
-      {activeTab === "summary" && (
-        <div className="p-8 max-w-4xl mx-auto animate-fade-in-up">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-anthropic-terracotta/10 text-anthropic-terracotta rounded-xl border border-anthropic-terracotta/20">
-                <FileText size={20} />
-              </div>
-              <h2 className="text-sub-small">Analysis Summary</h2>
-            </div>
-            {hasSummary && (
-              <button
-                onClick={() => copyToClipboard(hasSummary)}
-                className="flex items-center gap-2 px-4 py-2 bg-anthropic-warm-sand text-anthropic-charcoal-warm rounded-xl text-label font-medium transition-all hover:bg-[#dfddd2] shadow-ring-warm"
-              >
-                {copied ? (
-                  <Check size={14} className="text-emerald-600" />
-                ) : (
-                  <Copy size={14} />
-                )}
-                {copied ? "Copied" : "Copy Summary"}
-              </button>
-            )}
-          </div>
+    <div className="h-full flex flex-col bg-anthropic-ivory/30">
+      <div className="flex-1 overflow-y-auto pb-4 scroll-smooth">
+        <div className="max-w-5xl mx-auto flex flex-col gap-8 p-4 sm:p-8">
+        {items.map((item, idx) => {
+          const stableKey = `${item.timestamp || idx}-${(item.query || '').slice(0, 20)}`;
+          const itemData = item.data;
+          const isPending = item._pending || (!itemData && item.query);
+          
+          const hasCharts = itemData?.charts && Array.isArray(itemData.charts) && itemData.charts.length > 0;
+          const hasSummary = itemData?.summary || itemData?.content;
+          const hasTables = itemData?.tables && Array.isArray(itemData.tables) && itemData.tables.length > 0;
 
-          <div className="prose prose-anthropic max-w-none">
-            <div className="text-body-std text-anthropic-charcoal-warm whitespace-pre-wrap leading-relaxed bg-white/40 p-8 rounded-[2rem] border border-anthropic-border-cream shadow-whisper">
-              {hasSummary || "No summary available for this analysis."}
-            </div>
-          </div>
-
-          {/* Key Insights / Quick Stats if available */}
-          {data.insights && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-              {data.insights.map((insight, idx) => (
-                <div key={idx} className="stat-card">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-anthropic-terracotta" />
-                    <p className="text-label uppercase tracking-wider text-anthropic-stone-gray font-bold">
-                      Insight {idx + 1}
-                    </p>
+          return (
+            <div key={stableKey} className="flex flex-col gap-6 animate-fade-in-up">
+              
+              {/* User Prompt Bubble */}
+              {item.query && (
+                <div className="flex justify-end">
+                  <div className="bg-anthropic-near-black text-white px-5 py-3.5 rounded-2xl rounded-tr-sm max-w-[85%] sm:max-w-[75%] shadow-sm">
+                    <p className="text-body-std whitespace-pre-wrap">{item.query}</p>
+                    {item.timestamp && (
+                      <span className="text-[10px] text-anthropic-stone-gray/70 mt-2 block">
+                        {new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </span>
+                    )}
                   </div>
-                  <p className="text-body-sm text-anthropic-near-black font-medium">
-                    {insight}
-                  </p>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+              )}
 
-      {/* ===== CHARTS VIEW ===== */}
-      {activeTab === "charts" && (
-        <div className="p-4 sm:p-8 animate-fade-in-up w-full">
-          <div className="flex items-center gap-3 mb-6 sm:mb-8">
-            <div className="p-2 bg-anthropic-focus/10 text-anthropic-focus rounded-xl border border-anthropic-focus/20">
-              <BarChart2 size={20} />
-            </div>
-            <h2 className="text-sub-small">Visual Intelligence</h2>
-          </div>
+              {/* Pending / Loading state for this specific entry */}
+              {isPending && (
+                <div className="flex items-center gap-3 py-6 px-4 animate-pulse">
+                  <div className="p-3 bg-anthropic-terracotta/10 rounded-full border border-anthropic-terracotta/20">
+                    <Loader2 size={20} className="animate-spin text-anthropic-terracotta" />
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-medium text-anthropic-near-black">Generating charts...</p>
+                    <p className="text-[11px] text-anthropic-stone-gray">Building visualizations for your prompt</p>
+                  </div>
+                </div>
+              )}
 
-          {hasCharts ? (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
-              {data.charts.map((chart, index) => {
-                const title =
-                  chart.layout?.title?.text ||
-                  chart.layout?.title ||
-                  `Dynamic Chart ${index + 1}`;
-
-                const optimizedLayout = {
-                  ...chart.layout,
-                  title: null,
-                  autosize: true,
-                  margin: { l: 30, r: 10, t: 15, b: 35 },
-                  paper_bgcolor: "transparent",
-                  plot_bgcolor: "transparent",
-                  font: {
-                    color: "var(--text-primary)",
-                    size: 10,
-                    family: "Anthropic Sans, sans-serif",
-                  },
-                  colorway: [
-                    "var(--chart-1)",
-                    "var(--chart-2)",
-                    "var(--chart-3)",
-                    "var(--chart-4)",
-                    "var(--chart-5)",
-                    "var(--chart-6)",
-                    "var(--chart-7)"
-                  ],
-                };
-
-                return (
-                  <div
-                    key={index}
-                    className="stat-card !p-0 overflow-hidden flex flex-col group min-w-0 w-full"
-                  >
-                    <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-anthropic-border-cream flex items-center justify-between bg-anthropic-warm-sand/20">
-                      <h3 className="text-[12px] sm:text-label font-bold text-anthropic-near-black truncate mr-2 w-full">
-                        {title}
-                      </h3>
-                      <button
-                        onClick={() => setFullscreenChart(chart)}
-                        className="p-1 sm:p-1.5 text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0"
-                      >
-                        <Maximize2 size={14} />
-                      </button>
+              {/* AI Response / Result Area — only when data exists */}
+              {itemData && (
+              <div className="flex flex-col gap-4">
+                
+                {/* SUMMARY TAB equivalent */}
+                {(activeTab === "summary" || activeTab === "all") && hasSummary && (
+                  <div className="glass-card p-6 border border-anthropic-border-cream">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-1.5 bg-anthropic-terracotta/10 text-anthropic-terracotta rounded-lg">
+                        <FileText size={16} />
+                      </div>
+                      <h3 className="text-[13px] font-bold text-anthropic-near-black uppercase tracking-wider">Analysis Summary</h3>
                     </div>
-                    <div className="w-full h-[300px] sm:h-[350px] p-1 sm:p-2">
-                      <Plot
-                        data={chart.data}
-                        layout={optimizedLayout}
-                        config={{ responsive: true, displayModeBar: false }}
-                        style={{ width: "100%", height: "100%" }}
-                        useResizeHandler={true}
-                      />
+                    <div className="text-body-std text-anthropic-charcoal-warm whitespace-pre-wrap leading-relaxed">
+                      {hasSummary}
                     </div>
-                    {chart.insight && (
-                      <div className="px-3 sm:px-4 py-2 sm:py-3 bg-white border-t border-anthropic-border-cream/50">
-                        <p className="text-[10px] sm:text-[11px] leading-relaxed text-anthropic-charcoal-warm font-sans italic line-clamp-3 sm:line-clamp-none">
-                          <span className="font-bold text-anthropic-terracotta mr-1.5 not-italic tracking-wider uppercase text-[9px]">Insight:</span>
-                          {chart.insight}
-                        </p>
+                    
+                    {itemData.insights && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                        {itemData.insights.map((insight, i) => (
+                          <div key={i} className="p-4 bg-white rounded-xl border border-anthropic-border-cream shadow-sm">
+                            <div className="w-1.5 h-1.5 rounded-full bg-anthropic-terracotta mb-2" />
+                            <p className="text-body-sm text-anthropic-near-black font-medium">{insight}</p>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-anthropic-stone-gray w-full">
-              <BarChart2 size={48} className="mb-4 opacity-20" />
-              <p className="text-body-std text-center">
-                No charts were generated for this prompt.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
+                )}
 
-      {activeTab === "raw" && (
-        <div className="p-8 animate-fade-in-up">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-anthropic-charcoal-warm/10 text-anthropic-charcoal-warm rounded-xl border border-anthropic-charcoal-warm/20">
-                <TableIcon size={20} />
+                {/* CHARTS VIEW equivalent */}
+                {(activeTab === "charts" || activeTab === "all") && (
+                  <div className="w-full">
+                    {hasCharts ? (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
+                        {itemData.charts.map((chart, index) => {
+                          const title = chart.layout?.title?.text || chart.layout?.title || `Dynamic Chart ${index + 1}`;
+                          const optimizedLayout = {
+                            ...chart.layout,
+                            title: null,
+                            autosize: true,
+                            margin: { l: 30, r: 10, t: 15, b: 35 },
+                            paper_bgcolor: "transparent",
+                            plot_bgcolor: "transparent",
+                            font: { color: "var(--text-primary)", size: 10, family: "Anthropic Sans, sans-serif" },
+                            colorway: ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--chart-6)", "var(--chart-7)"],
+                          };
+
+                          return (
+                            <div key={index} className="stat-card !p-0 overflow-hidden flex flex-col group min-w-0 w-full bg-white shadow-sm border-anthropic-border-cream">
+                              <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-anthropic-border-cream flex items-center justify-between bg-anthropic-warm-sand/20">
+                                <h3 className="text-[12px] sm:text-label font-bold text-anthropic-near-black truncate mr-2 w-full">{title}</h3>
+                                <button onClick={() => setFullscreenChart(chart)} className="p-1 sm:p-1.5 text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0">
+                                  <Maximize2 size={14} />
+                                </button>
+                              </div>
+                              <div className="w-full h-[300px] sm:h-[350px] p-1 sm:p-2">
+                                <Plot data={chart.data} layout={optimizedLayout} config={{ responsive: true, displayModeBar: false }} style={{ width: "100%", height: "100%" }} useResizeHandler={true} />
+                              </div>
+                              {chart.insight && (
+                                <div className="px-3 sm:px-4 py-2 sm:py-3 bg-white border-t border-anthropic-border-cream/50">
+                                  <p className="text-[10px] sm:text-[11px] leading-relaxed text-anthropic-charcoal-warm font-sans italic line-clamp-3 sm:line-clamp-none">
+                                    <span className="font-bold text-anthropic-terracotta mr-1.5 not-italic tracking-wider uppercase text-[9px]">Insight:</span>
+                                    {chart.insight}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      activeTab === "charts" && (
+                        <div className="flex flex-col items-center justify-center py-10 text-anthropic-stone-gray bg-white/50 rounded-2xl border border-anthropic-border-cream border-dashed">
+                          <BarChart2 size={32} className="mb-3 opacity-30" />
+                          <p className="text-[13px]">No charts generated for this prompt.</p>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+
+                {/* RAW TABLES VIEW */}
+                {(activeTab === "raw" || activeTab === "all") && hasTables && (
+                  <div className="space-y-6 mt-2">
+                    {itemData.tables.map((table, index) => (
+                      <div key={index} className="bg-white rounded-2xl border border-anthropic-border-cream shadow-sm overflow-hidden">
+                        <div className="px-5 py-3 border-b border-anthropic-border-cream bg-anthropic-warm-sand/20 flex items-center justify-between">
+                          <h3 className="text-[13px] font-bold text-anthropic-near-black">{table.title || "Dataset Partition"}</h3>
+                          <button onClick={() => downloadCSV(table.data, `${table.title || "data"}.csv`)} className="flex items-center gap-2 px-3 py-1.5 bg-white text-anthropic-near-black border border-anthropic-border-cream rounded-lg text-[11px] font-medium hover:bg-anthropic-warm-sand transition-all shadow-sm">
+                            <Download size={12} /> Export CSV
+                          </button>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="bg-anthropic-parchment/50">
+                                {Object.keys(table.data[0] || {}).map((col, i) => (
+                                  <th key={i} className="px-4 py-2 text-[10px] uppercase tracking-wider font-bold text-anthropic-stone-gray border-b border-anthropic-border-cream">{col}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-anthropic-border-cream">
+                              {table.data.slice(0, 10).map((row, rIdx) => (
+                                <tr key={rIdx} className="hover:bg-anthropic-warm-sand/10 transition-colors">
+                                  {Object.values(row).map((val, cIdx) => (
+                                    <td key={cIdx} className="px-4 py-2.5 text-[12px] text-anthropic-olive-gray whitespace-nowrap">{typeof val === "number" ? val.toLocaleString() : String(val)}</td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <h2 className="text-sub-small">Processed Data</h2>
+              )}
             </div>
-          </div>
+          );
+        })}
+        <div ref={bottomRef} />
+      </div>
+    </div>
 
-          {hasTables ? (
-            <div className="space-y-8">
-              {data.tables.map((table, index) => (
-                <div key={index} className="glass-card overflow-hidden">
-                  <div className="px-6 py-4 border-b border-anthropic-border-cream bg-anthropic-warm-sand/20 flex items-center justify-between">
-                    <h3 className="text-feature !text-[1rem]">
-                      {table.title || "Dataset Partition"}
-                    </h3>
-                    <button
-                      onClick={() =>
-                        downloadCSV(table.data, `${table.title || "data"}.csv`)
-                      }
-                      className="flex items-center gap-2 px-3 py-1.5 bg-white text-anthropic-near-black border border-anthropic-border-cream rounded-lg text-label font-medium hover:bg-anthropic-warm-sand transition-all shadow-sm"
-                    >
-                      <Download size={14} />
-                      Export CSV
-                    </button>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-anthropic-parchment/50">
-                          {Object.keys(table.data[0] || {}).map((col, i) => (
-                            <th
-                              key={i}
-                              className="px-6 py-3 text-overline text-anthropic-stone-gray border-b border-anthropic-border-cream"
-                            >
-                              {col}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-anthropic-border-cream">
-                        {table.data.map((row, rIdx) => (
-                          <tr
-                            key={rIdx}
-                            className="hover:bg-anthropic-warm-sand/10 transition-colors"
-                          >
-                            {Object.values(row).map((val, cIdx) => (
-                              <td
-                                key={cIdx}
-                                className="px-6 py-4 text-body-sm text-anthropic-olive-gray whitespace-nowrap"
-                              >
-                                {typeof val === "number"
-                                  ? val.toLocaleString()
-                                  : String(val)}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {table.insight && (
-                    <div className="px-6 py-4 bg-anthropic-warm-sand/10 border-t border-anthropic-border-cream">
-                      <p className="text-[12px] leading-relaxed text-anthropic-charcoal-warm italic">
-                        <span className="font-bold text-anthropic-near-black mr-2 not-italic tracking-wide uppercase text-[10px]">Context:</span>
-                        {table.insight}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-anthropic-stone-gray">
-              <TableIcon size={48} className="mb-4 opacity-20" />
-              <p className="text-body-std">No structured data tables found.</p>
-            </div>
-          )}
-        </div>
-      )}
+    {/* ── Inline Prompt Input (pinned at bottom of chart panel) ── */}
+    <InlineInputBar onSubmitPrompt={onSubmitPrompt} isGenerating={isGenerating} />
 
       {/* ===== FULLSCREEN CHART MODAL ===== */}
       {fullscreenChart && (

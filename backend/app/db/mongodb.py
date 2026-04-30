@@ -67,19 +67,37 @@ def save_analysis(task_id: str, query: str, filename: str, dataset_id: str = Non
         return
     
     try:
-        record = {
-            "task_id": task_id,
-            "query": query,
-            "filename": filename,
-            "dataset_id": dataset_id,
-            "file_id": file_id,
-            "status": "running",
-            "created_at": datetime.now(timezone.utc),
-            "data": None,
-            "chats": []
-        }
-        chats_collection.insert_one(record)
-        logger.info("Saved initial analysis record for task %s", task_id)
+        # Check if dataset session already exists
+        existing = chats_collection.find_one({"dataset_id": dataset_id}) if dataset_id else None
+        
+        if existing:
+            chats_collection.update_one(
+                {"_id": existing["_id"]},
+                {"$set": {
+                    "current_task_id": task_id,
+                    "current_query": query,
+                    "status": "running",
+                    "updated_at": datetime.now(timezone.utc)
+                }}
+            )
+            logger.info("Updated existing session for dataset %s with new task %s", dataset_id, task_id)
+        else:
+            record = {
+                "task_id": task_id, # Keep for backwards compatibility
+                "current_task_id": task_id,
+                "query": query, # Initial query
+                "current_query": query,
+                "filename": filename,
+                "dataset_id": dataset_id,
+                "file_id": file_id,
+                "status": "running",
+                "created_at": datetime.now(timezone.utc),
+                "data": None,
+                "interactions": [],
+                "chats": []
+            }
+            chats_collection.insert_one(record)
+            logger.info("Saved initial analysis record for task %s", task_id)
     except Exception as e:
         logger.error("Error saving initial analysis: %s", str(e))
 
@@ -89,18 +107,33 @@ def update_analysis_result(task_id: str, status: str, result_data: dict = None, 
         return
     
     try:
+        doc = chats_collection.find_one({"$or": [{"current_task_id": task_id}, {"task_id": task_id}]})
+        if not doc:
+            logger.error("Could not find document for task %s", task_id)
+            return
+
         update_doc = {
             "$set": {
                 "status": status,
                 "updated_at": datetime.now(timezone.utc)
             }
         }
-        if result_data:
-            update_doc["$set"]["data"] = result_data
+        
+        if status == "completed" and result_data:
+            update_doc["$set"]["data"] = result_data # Keep latest data for backwards compat
+            
+            # Append to interactions
+            interaction = {
+                "query": doc.get("current_query", doc.get("query", "")),
+                "data": result_data,
+                "timestamp": datetime.now(timezone.utc)
+            }
+            update_doc["$push"] = {"interactions": interaction}
+            
         if error:
             update_doc["$set"]["error"] = error
             
-        chats_collection.update_one({"task_id": task_id}, update_doc)
+        chats_collection.update_one({"_id": doc["_id"]}, update_doc)
         logger.info("Updated analysis result for task %s with status %s", task_id, status)
     except Exception as e:
         logger.error("Error updating analysis result: %s", str(e))
@@ -130,11 +163,13 @@ def get_history(limit: int = 50):
         return []
     
     try:
-        # Fetching latest first. We exclude data to reduce payload size.
-        cursor = chats_collection.find({}, {"_id": 0, "data": 0}).sort("created_at", -1).limit(limit)
-        # Convert created_at to ISO string
+        # Fetching latest first. We exclude data and interactions to reduce payload size.
+        cursor = chats_collection.find({}, {"_id": 0, "data": 0, "interactions": 0}).sort("created_at", -1).limit(limit)
         results = []
         for doc in cursor:
+            # Ensure task_id is present for the sidebar
+            doc["task_id"] = doc.get("current_task_id", doc.get("task_id"))
+            
             if "created_at" in doc and isinstance(doc["created_at"], datetime):
                 doc["created_at"] = doc["created_at"].isoformat()
             if "updated_at" in doc and isinstance(doc["updated_at"], datetime):
@@ -161,8 +196,18 @@ def get_analysis_by_id(task_id: str):
         return None
     
     try:
-        doc = chats_collection.find_one({"task_id": task_id}, {"_id": 0})
+        doc = chats_collection.find_one({"$or": [{"current_task_id": task_id}, {"task_id": task_id}]}, {"_id": 0})
         if doc:
+            # Backwards compatibility: inject interactions if missing
+            if "interactions" not in doc:
+                if doc.get("data"):
+                    doc["interactions"] = [{
+                        "query": doc.get("query", ""),
+                        "data": doc.get("data"),
+                        "timestamp": doc.get("created_at")
+                    }]
+                else:
+                    doc["interactions"] = []
             doc = _convert_datetimes(doc)
         return doc
     except Exception as e:

@@ -133,6 +133,105 @@ async def start_analysis(
     return {"task_id": task_id}
 
 # ─────────────────────────────────────────────
+class ExistingAnalysisRequest(BaseModel):
+    dataset_id: str
+    query: str
+
+@router.post("/start-analysis-existing")
+async def start_analysis_existing(req: ExistingAnalysisRequest):
+    """
+    Generates new charts/analysis for an already uploaded dataset.
+    """
+    task_id = str(uuid.uuid4())
+    logger.info("Starting analysis task %s for existing dataset %s | query=%r", task_id, req.dataset_id, req.query[:60])
+
+    # 1) Get from memory
+    df = data_store.get(req.dataset_id)
+
+    # 2) Fallback to DB if not in memory
+    filename = ""
+    file_id = None
+    if df is None:
+        doc = get_analysis_by_dataset_id(req.dataset_id)
+        if doc and doc.get("file_id"):
+            file_id = doc["file_id"]
+            filename = doc.get("filename", "")
+            contents = get_file(file_id)
+            if contents:
+                if filename.endswith(".csv"):
+                    df = pd.read_csv(io.BytesIO(contents))
+                elif filename.endswith(".xlsx"):
+                    df = pd.read_excel(io.BytesIO(contents))
+                if df is not None:
+                    data_store.save(df, dataset_id=req.dataset_id)
+    else:
+        # If it was in memory, still try to fetch filename/file_id for the record
+        doc = get_analysis_by_dataset_id(req.dataset_id)
+        if doc:
+            filename = doc.get("filename", "")
+            file_id = doc.get("file_id")
+
+    if df is None:
+        return JSONResponse(status_code=400, content={"error": "Invalid dataset_id or dataset expired"})
+
+    # Save analysis record to MongoDB
+    save_analysis(task_id, req.query, filename, req.dataset_id, file_id)
+
+    async def _run():
+        try:
+            generator = ChartGenerator(df)
+            result = await generator.generate(req.query, task_id)
+
+            if is_cancelled(task_id):
+                update_analysis_result(task_id, "cancelled")
+                logger.info("Task %s: cancelled after LLM — discarding result", task_id)
+                return
+
+            serialised = json.loads(json.dumps(result, cls=PlotlyJSONEncoder))
+            update_analysis_result(task_id, "completed", serialised)
+            logger.info("Task %s completed successfully", task_id)
+
+        except asyncio.CancelledError:
+            update_analysis_result(task_id, "cancelled")
+            logger.info("Task %s pipeline aborted via cancel flag", task_id)
+            raise
+
+        except Exception as exc:
+            update_analysis_result(task_id, "error", error=str(exc))
+            logger.exception("Task %s raised an exception", task_id)
+
+        finally:
+            remove_task(task_id)
+
+    create_task(task_id, _run())
+    return {"task_id": task_id}
+
+# ─────────────────────────────────────────────
+@router.get("/get-file/{dataset_id}")
+async def get_dataset_file(dataset_id: str):
+    """
+    Returns the original uploaded file for a dataset so the frontend
+    can re-use it for follow-up chart generation.
+    """
+    from fastapi.responses import Response
+    doc = get_analysis_by_dataset_id(dataset_id)
+    if not doc or not doc.get("file_id"):
+        return JSONResponse(status_code=404, content={"error": "File not found for this dataset"})
+
+    contents = get_file(doc["file_id"])
+    if contents is None:
+        return JSONResponse(status_code=404, content={"error": "File data not found in storage"})
+
+    filename = doc.get("filename", "data.csv")
+    content_type = "text/csv" if filename.endswith(".csv") else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+    return Response(
+        content=contents,
+        media_type=content_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+# ─────────────────────────────────────────────
 @router.get("/status/{task_id}")
 async def get_status(task_id: str):
     """
