@@ -71,6 +71,7 @@ async def upload_file(file: UploadFile = File(...)):
 async def start_analysis(
     file: UploadFile = File(...),
     query: str = Form(...),
+    dataset_id: str = Form(None)
 ):
     """
     Accepts file + query directly (frontend-compatible).
@@ -79,7 +80,7 @@ async def start_analysis(
     """
     task_id = str(uuid.uuid4())
     filename = file.filename or ""
-    logger.info("Starting analysis task %s | file=%s | query=%r", task_id, filename, query[:60])
+    logger.info("Starting analysis task %s | file=%s | query=%r | dataset_id=%s", task_id, filename, query[:60], dataset_id)
 
     # ── parse uploaded file ──────────────────────────────────────────
     contents = await file.read()
@@ -94,14 +95,14 @@ async def start_analysis(
             content={"error": "Unsupported file format. Upload a .csv or .xlsx file."},
         )
 
-    # Save to data_store for memory cache
-    dataset_id = data_store.save(df)
+    # Save to data_store for memory cache (reuses ID if provided)
+    assigned_dataset_id = data_store.save(df, dataset_id=dataset_id)
     
     # Save file to GridFS
     file_id = save_file(contents, filename)
     
     # Save analysis record to MongoDB
-    save_analysis(task_id, query, filename, dataset_id, file_id)
+    save_analysis(task_id, query, filename, assigned_dataset_id, file_id)
 
     async def _run():
         try:

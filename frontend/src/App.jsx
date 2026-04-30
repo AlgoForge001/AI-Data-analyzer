@@ -304,6 +304,10 @@ function App() {
       const formData = new FormData();
       formData.append('file', activeFile);
       formData.append('query', followUpPrompt);
+      if (datasetId) {
+        formData.append('dataset_id', datasetId);
+      }
+      
       const startRes = await fetch(`${API_URL}/start-analysis`, {
         method: 'POST',
         body: formData
