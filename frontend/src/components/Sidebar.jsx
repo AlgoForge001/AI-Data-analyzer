@@ -97,10 +97,9 @@ const Sidebar = ({
   onNavigate,
 }) => {
   const [showUserPopover, setShowUserPopover] = useState(false);
-  const [hoveredItemId, setHoveredItemId] = useState(null);
-  const [hoveredItemPos, setHoveredItemPos] = useState({ top: 0, left: 0 });
-  const hoverTimeoutRef = useRef(null);
-  
+  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [activeMenuPos, setActiveMenuPos] = useState({ top: 0, left: 0 });
+
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof document !== 'undefined') {
       return document.documentElement.getAttribute('data-theme') === 'dark';
@@ -116,25 +115,25 @@ const Sidebar = ({
     return () => observer.disconnect();
   }, []);
 
-  const handleItemMouseEnter = (e, item) => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (activeMenuId && !event.target.closest('.history-hover-card') && !event.target.closest('.history-item-container')) {
+        setActiveMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeMenuId]);
+
+  const handleItemClick = (e, item) => {
+    e.stopPropagation();
+    if (activeMenuId === item.task_id) {
+      setActiveMenuId(null);
+      return;
+    }
     const rect = e.currentTarget.getBoundingClientRect();
-    setHoveredItemId(item.task_id);
-    setHoveredItemPos({ top: rect.top + rect.height / 2, left: rect.right });
-  };
-
-  const handleItemMouseLeave = () => {
-    hoverTimeoutRef.current = setTimeout(() => {
-      setHoveredItemId(null);
-    }, 150);
-  };
-
-  const handleMenuMouseEnter = () => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-  };
-
-  const handleMenuMouseLeave = () => {
-    handleItemMouseLeave();
+    setActiveMenuId(item.task_id);
+    setActiveMenuPos({ top: rect.top + rect.height / 2, left: rect.right });
   };
 
   return (
@@ -295,16 +294,11 @@ const Sidebar = ({
                 {history.map((item) => (
                   <div
                     key={item.task_id}
-                    onMouseEnter={(e) => handleItemMouseEnter(e, item)}
-                    onMouseLeave={handleItemMouseLeave}
-                    className="group/history-item relative px-4 py-2 rounded-lg hover:bg-anthropic-warm-sand/30 transition-all duration-200"
+                    onClick={(e) => handleItemClick(e, item)}
+                    className="history-item-container group/history-item relative px-4 py-2 rounded-lg hover:bg-anthropic-warm-sand/30 transition-all duration-200 cursor-pointer"
                   >
                     <div
-                      onClick={() => {
-                        onHistoryItemClick(item.task_id);
-                        onClose();
-                      }}
-                      className="text-[11px] text-anthropic-olive-gray group-hover/history-item:text-anthropic-near-black truncate cursor-pointer transition-colors"
+                      className="text-[11px] text-anthropic-olive-gray group-hover/history-item:text-anthropic-near-black truncate transition-colors"
                       title={item.query || "Untitled"}
                     >
                       {item.query || "Untitled"}
@@ -316,50 +310,48 @@ const Sidebar = ({
           )}
         </nav>
 
-        {/* Floating Hover Card outside Sidebar - Portaled via fixed positioning */}
-        {hoveredItemId && (
-          <div 
-            onMouseEnter={handleMenuMouseEnter}
-            onMouseLeave={handleMenuMouseLeave}
+        {/* Floating Menu Card outside Sidebar - Portaled via fixed positioning */}
+        {activeMenuId && (
+          <div
             className="history-hover-card fixed z-[9999] flex flex-col gap-1.5 rounded-xl p-2 ml-4 min-w-[180px] animate-in fade-in slide-in-from-left-2 duration-200"
-            style={{ 
-              top: hoveredItemPos.top, 
-              left: hoveredItemPos.left,
-              transform: 'translateY(-50%)' 
+            style={{
+              top: activeMenuPos.top,
+              left: activeMenuPos.left,
+              transform: 'translateY(-50%)'
             }}
           >
             {/* Visual pointer/arrow */}
-            <div 
-              className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 border-l border-b border-anthropic-border-cream dark:border-anthropic-border-dark rotate-45" 
+            <div
+              className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 border-l border-b border-anthropic-border-cream dark:border-anthropic-border-dark rotate-45"
               style={{ backgroundColor: 'var(--bg-popover)' }}
             />
-            
+
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onHistoryItemClick(hoveredItemId, 'charts');
+                onHistoryItemClick(activeMenuId, 'charts');
                 onClose();
-                setHoveredItemId(null);
+                setActiveMenuId(null);
               }}
               title="Open Charts"
               className="w-full flex items-center gap-3 py-2 px-4 bg-anthropic-warm-sand/50 border border-anthropic-border-warm text-anthropic-near-black rounded-lg hover:bg-anthropic-warm-sand transition-all transform active:scale-95 z-10"
             >
               <LayoutDashboard size={14} className="shrink-0" />
-              <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">Open Charts</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">dashboard and charts</span>
             </button>
 
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onHistoryItemClick(hoveredItemId, 'chat');
+                onHistoryItemClick(activeMenuId, 'chat');
                 onClose();
-                setHoveredItemId(null);
+                setActiveMenuId(null);
               }}
               title="Open Assistant"
               className="w-full flex items-center gap-3 py-2 px-4 bg-anthropic-terracotta text-white rounded-lg hover:opacity-90 transition-all transform active:scale-95 z-10 font-medium"
             >
               <Sparkles size={14} className="shrink-0" />
-              <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">Open Assistant</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">chat analysis</span>
             </button>
           </div>
         )}

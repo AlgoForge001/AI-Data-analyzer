@@ -378,45 +378,24 @@ function App() {
 
                       <div className="mt-8 md:mt-12 flex flex-col items-center gap-6 max-w-2xl w-full">
 
-                        {/* Step 1: Upload Data */}
-                        <div
-                          className={`w-full max-w-md p-4 flex items-center justify-between rounded-2xl cursor-pointer transition-all ${file ? 'bg-anthropic-warm-sand/50 border border-anthropic-terracotta shadow-sm' : 'bg-anthropic-near-black text-white hover:bg-anthropic-near-black/90 shadow-md'}`}
+                        {/* Simple Upload Button */}
+                        <button
                           onClick={() => fileInputAppRef.current?.click()}
+                          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all shadow-sm max-w-full ${
+                            file 
+                              ? 'bg-anthropic-warm-sand border border-anthropic-terracotta/30 text-anthropic-near-black hover:bg-anthropic-warm-sand/70' 
+                              : 'bg-anthropic-near-black text-white hover:bg-anthropic-charcoal-warm'
+                          }`}
                         >
-                          <div className="flex items-center gap-4">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${file ? 'bg-white shadow-sm' : 'bg-white/20'}`}>
-                              <Database size={20} className={file ? 'text-anthropic-terracotta' : 'text-white'} />
-                            </div>
-                            <div className="text-left">
-                              <h3 className={`font-semibold text-sm ${file ? 'text-anthropic-near-black' : 'text-white'}`}>
-                                {file ? 'Data Uploaded Successfully' : ' Upload Data'}
-                              </h3>
-                              <p className={`text-[12px] mt-0.5 line-clamp-1 ${file ? 'text-anthropic-stone-gray' : 'text-white/70'}`}>
-                                {file ? file.name : 'Select a .csv, .xlsx, or .json file'}
-                              </p>
-                            </div>
-                          </div>
-                          {!file && (
-                            <div className="px-4 py-2 bg-white/10 hover:bg-white/20 transition-colors rounded-lg text-[12px] font-medium text-white shrink-0">
-                              Browse Files
-                            </div>
-                          )}
-                          {file && (
-                            <div className="px-4 py-2 bg-white hover:bg-anthropic-warm-sand transition-colors rounded-lg text-[12px] font-medium text-anthropic-terracotta border border-anthropic-border-warm shrink-0">
-                              Change File
-                            </div>
-                          )}
-                        </div>
+                          <Database size={16} className={`shrink-0 ${file ? 'text-anthropic-terracotta' : 'text-white'}`} />
+                          <span className="text-[13px] font-medium truncate">
+                            {file ? file.name : 'Upload Data'}
+                          </span>
+                        </button>
 
-                        {/* Step 2 Divider and Actions (Hidden once an action is selected) */}
+                        {/* Actions (Hidden once an action is selected) */}
                         {!selectedAction && (
                           <>
-                            <div className="w-full relative flex items-center justify-center my-2 animate-fade-in-up">
-                              <div className="absolute w-full h-[1px] bg-anthropic-border-cream"></div>
-                              <span className={`relative bg-white px-4 text-[11px] font-bold uppercase tracking-widest transition-colors ${file ? 'text-anthropic-terracotta' : 'text-anthropic-stone-gray/50'}`}>
-                                Step 2: Choose Action
-                              </span>
-                            </div>
 
                             {/* No-data alert banner */}
                             {noDataAlert && (
@@ -600,12 +579,11 @@ function App() {
                       datasetId={datasetId}
                       onClose={() => {
                         setShowChat(false);
-                        // Bug 2 fix: when closing a chat-only session,
-                        // go back to the action-cards welcome screen so
-                        // the background is never blank.
+                        // Fix: when closing a chat-only session,
+                        // completely reset to the new analysis state
+                        // to prevent lingering old data when starting over.
                         if (selectedAction === 'chat') {
-                          setSelectedAction(null);
-                          setCurrentView('new');
+                          handleNewAnalysis();
                         }
                       }}
                       // Bug 1 fix: auto-fire the typed prompt as first message
