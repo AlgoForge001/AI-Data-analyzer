@@ -176,6 +176,7 @@ const AnalysisOutput = ({ data, loading, activeTab = "summary", history = [], on
           const hasCharts = itemData?.charts && Array.isArray(itemData.charts) && itemData.charts.length > 0;
           const hasSummary = itemData?.summary || itemData?.content;
           const hasTables = itemData?.tables && Array.isArray(itemData.tables) && itemData.tables.length > 0;
+          const hasScorecards = itemData?.scorecards && Array.isArray(itemData.scorecards) && itemData.scorecards.length > 0;
 
           return (
             <div key={stableKey} className="flex flex-col gap-6 animate-fade-in-up">
@@ -234,6 +235,34 @@ const AnalysisOutput = ({ data, loading, activeTab = "summary", history = [], on
                         ))}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* SCORECARDS */}
+                {(activeTab === "charts" || activeTab === "all") && hasScorecards && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 w-full animate-fade-in">
+                    {itemData.scorecards.map((sc, i) => (
+                      <div
+                        key={i}
+                        className="bg-white border border-anthropic-border-cream rounded-xl p-4 flex flex-col gap-1 shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-anthropic-stone-gray truncate">
+                          {sc.label}
+                        </span>
+                        <span className="text-[1.4rem] font-serif font-semibold text-anthropic-near-black leading-tight">
+                          {typeof sc.value === "number"
+                            ? sc.value.toLocaleString(undefined, {
+                                maximumFractionDigits: 2,
+                              })
+                            : sc.value ?? "—"}
+                        </span>
+                        {sc.aggregation && (
+                          <span className="text-[9px] text-anthropic-stone-gray/60 uppercase tracking-wider">
+                            {sc.aggregation}
+                          </span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
 

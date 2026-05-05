@@ -230,15 +230,16 @@ def delete_analysis(task_id: str):
         return False
     
     try:
-        # First, find it to get file_id
-        doc = chats_collection.find_one({"task_id": task_id}, {"file_id": 1})
+        # Match on either task_id or current_task_id (re-analyzed datasets)
+        query = {"$or": [{"current_task_id": task_id}, {"task_id": task_id}]}
+        doc = chats_collection.find_one(query, {"file_id": 1})
         if doc and doc.get("file_id") and fs is not None:
             try:
                 fs.delete(ObjectId(doc["file_id"]))
             except Exception as e:
                 logger.error("Error deleting file from GridFS: %s", str(e))
                 
-        result = chats_collection.delete_one({"task_id": task_id})
+        result = chats_collection.delete_one(query)
         return result.deleted_count > 0
     except Exception as e:
         logger.error("Error deleting analysis %s: %s", task_id, str(e))
