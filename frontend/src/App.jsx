@@ -693,7 +693,7 @@ function App() {
                         {/* Right Side Actions */}
                         <div className="flex items-center gap-2 shrink-0">
                           {/* Switch between Charts ↔ Chat */}
-                          {analysisData && !loading && selectedAction === 'chat' && (
+                          {analysisData && selectedAction === 'chat' && (
                             <button
                               onClick={() => {
                                 setShowChat(false);
@@ -706,7 +706,7 @@ function App() {
                             </button>
                           )}
 
-                          {!showChat && analysisData && !loading && selectedAction === 'charts' && (
+                          {!showChat && analysisData && selectedAction === 'charts' && (
                             <button
                               onClick={() => setShowChat(true)}
                               className="flex items-center gap-2 px-3 py-1.5 bg-anthropic-warm-sand text-anthropic-near-black border border-anthropic-border-warm rounded-lg text-[11px] font-bold uppercase tracking-tight hover:bg-anthropic-warm-sand/50 transition-all shadow-sm shrink-0"
@@ -716,7 +716,7 @@ function App() {
                             </button>
                           )}
 
-                          {analysisData && !loading && selectedAction === 'charts' && (
+                          {analysisData && selectedAction === 'charts' && (
                             <button
                               onClick={() => handleNewAnalysis()}
                               className="flex items-center gap-2 px-3 py-1.5 bg-anthropic-warm-sand text-anthropic-near-black border border-anthropic-border-warm rounded-lg text-[11px] font-bold uppercase tracking-tight hover:bg-anthropic-warm-sand/50 transition-all shadow-sm shrink-0"
@@ -727,7 +727,7 @@ function App() {
                           )}
 
                           {/* Result Tabs */}
-                          {analysisData && !loading && selectedAction !== 'chat' && (
+                          {analysisData && selectedAction !== 'chat' && (
                             <div className="flex items-center gap-1 bg-white/80 rounded-lg p-0.5 border border-anthropic-border-cream shrink-0">
                               {['charts', 'raw'].map(tab => (
                                 <button
@@ -788,10 +788,8 @@ function App() {
                       key={datasetId}
                       datasetId={datasetId}
                       onClose={() => {
-                        // Always do a full session reset when user explicitly
-                        // closes the chat panel — prevents stale datasetId
-                        // lingering on the dashboard welcome screen.
-                        handleNewAnalysis();
+                        setShowChat(false);
+                        setSelectedAction('charts');
                       }}
                       // Bug 1 fix: auto-fire the typed prompt as first message
                       initialQuery={chatInitialQuery}
