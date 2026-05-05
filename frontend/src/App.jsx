@@ -718,7 +718,13 @@ function App() {
 
                           {analysisData && selectedAction === 'charts' && (
                             <button
-                              onClick={() => handleNewAnalysis()}
+                              onClick={() => {
+                                if (showChat) {
+                                  setSelectedAction('chat');
+                                } else {
+                                  handleNewAnalysis();
+                                }
+                              }}
                               className="flex items-center gap-2 px-3 py-1.5 bg-anthropic-warm-sand text-anthropic-near-black border border-anthropic-border-warm rounded-lg text-[11px] font-bold uppercase tracking-tight hover:bg-anthropic-warm-sand/50 transition-all shadow-sm shrink-0"
                             >
                               <X size={14} className="text-anthropic-terracotta shrink-0" />
