@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import Plot from "react-plotly.js";
+import { convertChartToPlotly } from "../utils/chartConverter";
 import {
   TrendingUp,
   Copy,
@@ -74,7 +75,7 @@ const InlineInputBar = ({ onSubmitPrompt, isGenerating }) => {
           ) : (
             <Zap size={14} fill="currentColor" />
           )}
-          <span className="hidden sm:inline">{isGenerating ? 'Generating...' : 'Execute'}</span>
+          <span className="hidden sm:inline">{isGenerating ? 'Processing...' : 'Execute'}</span>
         </button>
       </div>
       {!isGenerating && inlinePrompt.trim() && (
@@ -266,40 +267,65 @@ const AnalysisOutput = ({ data, loading, activeTab = "summary", history = [], on
                   </div>
                 )}
 
-                {/* CHARTS VIEW equivalent */}
+                {/* CHARTS VIEW — now uses chartConverter */}
                 {(activeTab === "charts" || activeTab === "all") && (
                   <div className="w-full">
                     {hasCharts ? (
                       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
-                        {itemData.charts.map((chart, index) => {
-                          const title = chart.layout?.title?.text || chart.layout?.title || `Dynamic Chart ${index + 1}`;
+                        {itemData.charts.map((rawChart, index) => {
+                          // Convert backend format to Plotly format
+                          const converted = convertChartToPlotly(rawChart);
+                          if (!converted) return null;
+
+                          const title = converted.layout?.title?.text || rawChart.title || `Chart ${index + 1}`;
+                          const chartInsight = converted.insight || rawChart.insight;
+
                           const optimizedLayout = {
-                            ...chart.layout,
+                            ...converted.layout,
                             title: null,
                             autosize: true,
-                            margin: { l: 30, r: 10, t: 15, b: 35 },
+                            margin: { l: 50, r: 15, t: 20, b: 45 },
                             paper_bgcolor: "transparent",
                             plot_bgcolor: "transparent",
-                            font: { color: "var(--text-primary)", size: 10, family: "Anthropic Sans, sans-serif" },
-                            colorway: ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--chart-6)", "var(--chart-7)"],
+                            font: { color: "#3D3929", size: 10, family: "system-ui, -apple-system, sans-serif" },
                           };
 
+                          // Determine if the chart should span full width
+                          const isLargeChart = rawChart.layout_size === "large" ||
+                            rawChart.type === "heatmap" ||
+                            rawChart.type === "funnel" ||
+                            rawChart.type === "treemap";
+
                           return (
-                            <div key={index} className="stat-card !p-0 overflow-hidden flex flex-col group min-w-0 w-full bg-white shadow-sm border-anthropic-border-cream">
+                            <div
+                              key={index}
+                              className={`stat-card !p-0 overflow-hidden flex flex-col group min-w-0 w-full bg-white shadow-sm border-anthropic-border-cream ${
+                                isLargeChart ? "xl:col-span-2" : ""
+                              }`}
+                            >
                               <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-anthropic-border-cream flex items-center justify-between bg-anthropic-warm-sand/20">
                                 <h3 className="text-[12px] sm:text-label font-bold text-anthropic-near-black truncate mr-2 w-full">{title}</h3>
-                                <button onClick={() => setFullscreenChart(chart)} className="p-1 sm:p-1.5 text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0">
+                                <button
+                                  onClick={() => setFullscreenChart({ converted, rawChart })}
+                                  className="p-1 sm:p-1.5 text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg sm:opacity-0 sm:group-hover:opacity-100 transition-all shrink-0"
+                                >
                                   <Maximize2 size={14} />
                                 </button>
                               </div>
-                              <div className="w-full h-[300px] sm:h-[350px] p-1 sm:p-2">
-                                <Plot data={chart.data} layout={optimizedLayout} config={{ responsive: true, displayModeBar: false }} style={{ width: "100%", height: "100%" }} useResizeHandler={true} />
+                              <div className={`w-full p-1 sm:p-2 ${isLargeChart ? "h-[400px] sm:h-[450px]" : "h-[300px] sm:h-[350px]"}`}>
+                                <Plot
+                                  data={converted.data}
+                                  layout={optimizedLayout}
+                                  config={{ responsive: true, displayModeBar: false }}
+                                  style={{ width: "100%", height: "100%" }}
+                                  useResizeHandler={true}
+                                />
                               </div>
-                              {chart.insight && (
+                              {chartInsight && (
                                 <div className="px-3 sm:px-4 py-2 sm:py-3 bg-white border-t border-anthropic-border-cream/50">
                                   <p className="text-[10px] sm:text-[11px] leading-relaxed text-anthropic-charcoal-warm font-sans italic line-clamp-3 sm:line-clamp-none">
                                     <span className="font-bold text-anthropic-terracotta mr-1.5 not-italic tracking-wider uppercase text-[9px]">Insight:</span>
-                                    {chart.insight}
+                                    {chartInsight}
                                   </p>
                                 </div>
                               )}
@@ -375,9 +401,7 @@ const AnalysisOutput = ({ data, loading, activeTab = "summary", history = [], on
                   <TrendingUp className="text-anthropic-terracotta" size={20} />
                 </div>
                 <h3 className="text-sub-small">
-                  {typeof fullscreenChart.layout?.title === "string"
-                    ? fullscreenChart.layout.title
-                    : fullscreenChart.layout?.title?.text || "Expanded Insight"}
+                  {fullscreenChart.converted?.layout?.title?.text || fullscreenChart.rawChart?.title || "Expanded Insight"}
                 </h3>
               </div>
               <button
@@ -389,24 +413,19 @@ const AnalysisOutput = ({ data, loading, activeTab = "summary", history = [], on
             </div>
             <div className="flex-1 w-full p-8 relative min-h-0">
               <Plot
-                data={fullscreenChart.data}
+                data={fullscreenChart.converted?.data || []}
                 layout={{
-                  ...fullscreenChart.layout,
+                  ...(fullscreenChart.converted?.layout || {}),
+                  title: null,
+                  autosize: true,
                   paper_bgcolor: "transparent",
                   plot_bgcolor: "transparent",
                   font: {
-                    family: "Anthropic Sans, sans-serif",
-                    color: "var(--text-primary)",
+                    family: "system-ui, -apple-system, sans-serif",
+                    color: "#3D3929",
+                    size: 12,
                   },
-                  colorway: [
-                    "var(--chart-1)",
-                    "var(--chart-2)",
-                    "var(--chart-3)",
-                    "var(--chart-4)",
-                    "var(--chart-5)",
-                    "var(--chart-6)",
-                    "var(--chart-7)"
-                  ],
+                  margin: { l: 60, r: 30, t: 20, b: 60 },
                 }}
                 config={{ responsive: true, displayModeBar: true }}
                 style={{ width: "100%", height: "100%" }}

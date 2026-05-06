@@ -102,7 +102,6 @@ const Sidebar = ({
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [activeMenuPos, setActiveMenuPos] = useState({ top: 0 });
 
-  // Track actual sidebar pixel width so popup can transition smoothly with it
   const SIDEBAR_EXPANDED_W = 220;
   const SIDEBAR_COLLAPSED_W = 56;
   const POPUP_GAP = 10; // px gap between sidebar edge and popup
@@ -122,7 +121,7 @@ const Sidebar = ({
     return () => observer.disconnect();
   }, []);
 
-  // Close popup on outside click, but NOT when clicking the toggle button or the popup itself
+  // Close popup on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -147,20 +146,16 @@ const Sidebar = ({
     }
     const rect = e.currentTarget.getBoundingClientRect();
     setActiveMenuId(item.task_id);
-    // Store the vertical midpoint of the clicked row — left is derived reactively from sidebar width
     setActiveMenuPos({ top: rect.top + rect.height / 2 });
 
-    // Change 2: Auto-load dashboard + charts immediately on click
+    // Auto-load charts immediately on click
     onHistoryItemClick(item.task_id, 'charts');
 
-    // On mobile, close the sidebar so the dashboard is immediately visible
     if (window.innerWidth < 1024) {
       onClose();
     }
   };
 
-  // Compute the popup's left position reactively based on current sidebar state
-  // This matches the sidebar's 200ms transition so it slides smoothly
   const popupLeft = isCollapsed ? SIDEBAR_COLLAPSED_W + POPUP_GAP : SIDEBAR_EXPANDED_W + POPUP_GAP;
 
   return (
@@ -183,66 +178,37 @@ const Sidebar = ({
         `}
         style={{ width: isCollapsed ? `${SIDEBAR_COLLAPSED_W}px` : `${SIDEBAR_EXPANDED_W}px`, padding: isCollapsed ? '8px' : '24px' }}
       >
-        {/* ── TOP BAR: Toggle button + Logo/Brand ──────────────────────────── */}
-        {/* Change 1: Toggle button is now at the TOP of the sidebar, always visible */}
-        <div
-          className={`flex items-center mb-6 transition-all duration-200 ${isCollapsed ? 'justify-center' : 'justify-between'}`}
-        >
-          {/* Brand / Logo — fades out when collapsed */}
+        {/* TOP BAR */}
+        <div className={`flex items-center mb-6 transition-all duration-200 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!isCollapsed && (
-            <div
-              className="flex items-center gap-2.5 cursor-pointer min-w-0 flex-1"
-              onClick={() => onNavigate('dashboard')}
-            >
+            <div className="flex items-center gap-2.5 cursor-pointer min-w-0 flex-1" onClick={() => onNavigate('dashboard')}>
               <div className="w-7 h-7 rounded-lg bg-anthropic-terracotta/10 border border-anthropic-terracotta/20 flex items-center justify-center shrink-0">
                 <Database size={14} className="text-anthropic-terracotta" />
               </div>
-              <div className="overflow-hidden transition-all duration-200 leading-none">
-                <h1 className="text-sub-small !text-[1.1rem] !font-serif tracking-tight leading-none whitespace-nowrap">
-                  JavaX
-                </h1>
-                <p className="text-overline !text-[8px] text-anthropic-stone-gray mt-0.5 whitespace-nowrap">
-                  AI Data Engine
-                </p>
+              <div className="overflow-hidden leading-none">
+                <h1 className="text-sub-small !text-[1.1rem] !font-serif tracking-tight leading-none whitespace-nowrap">JavaX</h1>
+                <p className="text-overline !text-[8px] text-anthropic-stone-gray mt-0.5">AI Data Engine</p>
               </div>
             </div>
           )}
 
-          {/* Collapse toggle — desktop only, highest z-index so popup never covers it */}
           <button
             onClick={onToggleCollapse}
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="
-              sidebar-toggle-btn
-              hidden lg:flex w-7 h-7 rounded-lg shrink-0
-              bg-anthropic-warm-sand/60 border border-anthropic-border-cream
-              items-center justify-center text-anthropic-stone-gray
-              hover:text-anthropic-near-black hover:bg-anthropic-warm-sand
-              transition-all duration-150
-            "
+            className="sidebar-toggle-btn hidden lg:flex w-7 h-7 rounded-lg shrink-0 bg-anthropic-warm-sand/60 border border-anthropic-border-cream items-center justify-center text-anthropic-stone-gray hover:text-anthropic-near-black transition-all"
             style={{ zIndex: 60, position: 'relative' }}
           >
             {isCollapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
           </button>
 
-          {/* Close button — mobile only */}
           {!isCollapsed && (
-            <button
-              onClick={onClose}
-              className="lg:hidden p-1 text-anthropic-stone-gray hover:text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg transition-all duration-200 ml-1"
-            >
+            <button onClick={onClose} className="lg:hidden p-1 text-anthropic-stone-gray hover:text-anthropic-near-black rounded-lg ml-1">
               <X size={20} />
             </button>
           )}
         </div>
 
-        {/* Collapsed state: show icon-only logo mark */}
         {isCollapsed && (
-          <div
-            className="flex items-center justify-center mb-4 cursor-pointer"
-            onClick={() => onNavigate('dashboard')}
-          >
+          <div className="flex items-center justify-center mb-4 cursor-pointer" onClick={() => onNavigate('dashboard')}>
             <div className="w-7 h-7 rounded-lg bg-anthropic-terracotta/10 border border-anthropic-terracotta/20 flex items-center justify-center">
               <Database size={14} className="text-anthropic-terracotta" />
             </div>
@@ -252,100 +218,34 @@ const Sidebar = ({
         {/* New Analysis button */}
         <div className="relative group/newbtn mb-6">
           <button
-            onClick={() => {
-              onNewAnalysis();
-              onClose();
-            }}
-            className="
-              w-full flex items-center justify-center gap-2 py-3
-              bg-anthropic-near-black text-anthropic-ivory rounded-xl font-medium text-body-sm
-              hover:bg-anthropic-charcoal-warm transition-all duration-200 active:scale-95 shadow-whisper
-            "
-            style={{ paddingLeft: isCollapsed ? 0 : undefined, paddingRight: isCollapsed ? 0 : undefined }}
+            onClick={() => { onNewAnalysis(); onClose(); }}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-anthropic-near-black text-anthropic-ivory rounded-xl font-medium text-body-sm hover:bg-anthropic-charcoal-warm transition-all active:scale-95 shadow-whisper"
           >
             <Plus size={18} className="shrink-0" />
-            <span
-              className="overflow-hidden whitespace-nowrap transition-all duration-200"
-              style={{ opacity: isCollapsed ? 0 : 1, maxWidth: isCollapsed ? 0 : '120px' }}
-            >
-              New Analysis
-            </span>
+            {!isCollapsed && <span className="overflow-hidden whitespace-nowrap transition-all duration-200">New Analysis</span>}
           </button>
-          {/* Tooltip for collapsed state */}
-          {isCollapsed && (
-            <span
-              className="
-                pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 z-[9999]
-                px-2.5 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap
-                opacity-0 group-hover/newbtn:opacity-100
-                translate-x-[-4px] group-hover/newbtn:translate-x-0
-                transition-all duration-150 shadow-md
-              "
-              style={{
-                background: 'var(--bg-popover, #F5F0EA)',
-                color: 'var(--text-primary, #0D0F1A)',
-                border: '1px solid var(--border-color, rgba(0,0,0,0.08))',
-              }}
-            >
-              New Analysis
-            </span>
-          )}
         </div>
 
-        <nav
-          className="flex flex-col flex-1 min-h-0 -mx-2 px-2 overflow-y-auto overflow-x-visible scrollbar-hide"
-        >
-          {/* Menu items */}
-          <div className="space-y-1" style={{ overflowX: 'visible' }}>
-            {!isCollapsed && (
-              <p className="text-overline text-anthropic-stone-gray ml-4 mb-3 uppercase tracking-widest text-[9px]">
-                Menu
-              </p>
-            )}
-            <SidebarItem
-              icon={LayoutDashboard}
-              label="Dashboard"
-              active={activePage === "dashboard"}
-              onClick={() => {
-                onNavigate("dashboard");
-                onClose();
-              }}
-              isCollapsed={isCollapsed}
-            />
-            <SidebarItem
-              icon={Search}
-              label="Search"
-              active={activePage === "search"}
-              onClick={() => {
-                onNavigate("search");
-                onClose();
-              }}
-              isCollapsed={isCollapsed}
-            />
+        <nav className="flex flex-col flex-1 min-h-0 -mx-2 px-2 overflow-y-auto scrollbar-hide">
+          <div className="space-y-1">
+            {!isCollapsed && <p className="text-overline text-anthropic-stone-gray ml-4 mb-3 uppercase tracking-widest text-[9px]">Menu</p>}
+            <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activePage === "dashboard"} onClick={() => { onNavigate("dashboard"); onClose(); }} isCollapsed={isCollapsed} />
+            <SidebarItem icon={Search} label="Search" active={activePage === "search"} onClick={() => { onNavigate("search"); onClose(); }} isCollapsed={isCollapsed} />
           </div>
 
-          {/* Recent Chats — only shown when expanded */}
           {history.length > 0 && !isCollapsed && (
             <div className="flex flex-col min-h-0 pt-5 mt-5 border-t border-anthropic-border-cream flex-1">
-              <p className="text-overline text-anthropic-stone-gray ml-4 mb-2 uppercase tracking-widest text-[9px] shrink-0">
-                Recent
-              </p>
+              <p className="text-overline text-anthropic-stone-gray ml-4 mb-2 uppercase tracking-widest text-[9px] shrink-0">Recent</p>
               <div className="flex-1 space-y-0.5 pr-1">
                 {history.map((item) => (
                   <div
                     key={item.task_id}
                     onClick={(e) => handleItemClick(e, item)}
                     className={`history-item-container group/history-item relative px-4 py-2 rounded-lg transition-all duration-200 cursor-pointer
-                      ${activeMenuId === item.task_id
-                        ? 'bg-anthropic-warm-sand/60 text-anthropic-near-black'
-                        : 'hover:bg-anthropic-warm-sand/30'
-                      }
+                      ${activeMenuId === item.task_id ? 'bg-anthropic-warm-sand/60 text-anthropic-near-black' : 'hover:bg-anthropic-warm-sand/30'}
                     `}
                   >
-                    <div
-                      className="text-[11px] text-anthropic-olive-gray group-hover/history-item:text-anthropic-near-black truncate transition-colors"
-                      title={item.query || "Untitled"}
-                    >
+                    <div className="text-[11px] text-anthropic-olive-gray group-hover/history-item:text-anthropic-near-black truncate transition-colors" title={item.query || "Untitled"}>
                       {item.query || "Untitled"}
                     </div>
                   </div>
@@ -357,54 +257,32 @@ const Sidebar = ({
 
         {/* User Info Card */}
         <div className="mt-auto relative">
-          {/* User Popover */}
           {showUserPopover && (
-            <div className={`
-              absolute bottom-[calc(100%+12px)] left-0 w-full min-w-[200px]
-              bg-anthropic-ivory border border-anthropic-border-cream rounded-2xl
-              shadow-elegant animate-fade-in-up z-50 overflow-hidden user-popover
-            `}>
+            <div className="absolute bottom-[calc(100%+12px)] left-0 w-full min-w-[200px] bg-anthropic-ivory border border-anthropic-border-cream rounded-2xl shadow-elegant animate-fade-in-up z-50 overflow-hidden user-popover">
               <div className="p-4 border-b border-anthropic-border-cream bg-anthropic-warm-sand/20">
                 <p className="text-[12px] font-semibold text-anthropic-near-black">Admin User</p>
                 <p className="text-[10px] text-anthropic-stone-gray truncate">admin@javax.io</p>
-                <p className="text-[9px] font-bold text-anthropic-terracotta mt-1 uppercase tracking-tighter">Administrator</p>
               </div>
               <div className="p-1.5">
-                <button
-                  onClick={() => { onNavigate("settings"); setShowUserPopover(false); }}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-[12px] text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg transition-colors text-left"
-                >
-                  <Settings size={14} className="text-anthropic-stone-gray" />
-                  Settings
+                <button onClick={() => { onNavigate("settings"); setShowUserPopover(false); }} className="w-full flex items-center gap-3 px-3 py-2 text-[12px] text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg transition-colors text-left">
+                  <Settings size={14} className="text-anthropic-stone-gray" /> Settings
                 </button>
-                <button
-                  onClick={() => { onNavigate("profile"); setShowUserPopover(false); }}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-[12px] text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg transition-colors text-left"
-                >
-                  <User size={14} className="text-anthropic-stone-gray" />
-                  Profile
+                <button onClick={() => { onNavigate("profile"); setShowUserPopover(false); }} className="w-full flex items-center gap-3 px-3 py-2 text-[12px] text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg transition-colors text-left">
+                  <User size={14} className="text-anthropic-stone-gray" /> Profile
                 </button>
-                <button
-                  onClick={() => {
-                    const html = document.documentElement;
-                    const currentTheme = html.getAttribute('data-theme');
-                    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                    html.setAttribute('data-theme', newTheme);
-                    localStorage.setItem('javax-theme', newTheme);
-                    setIsDarkMode(newTheme === 'dark');
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-[12px] text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg transition-colors text-left"
-                >
-                  {isDarkMode ? <Sun size={14} className="text-anthropic-stone-gray" /> : <Moon size={14} className="text-anthropic-stone-gray" />}
-                  {isDarkMode ? "Light Mode" : "Dark Mode"}
+                <button onClick={() => {
+                  const html = document.documentElement;
+                  const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                  html.setAttribute('data-theme', newTheme);
+                  localStorage.setItem('javax-theme', newTheme);
+                  setIsDarkMode(newTheme === 'dark');
+                }} className="w-full flex items-center gap-3 px-3 py-2 text-[12px] text-anthropic-near-black hover:bg-anthropic-warm-sand/50 rounded-lg transition-colors text-left">
+                  {isDarkMode ? <Sun size={14} /> : <Moon size={14} />} {isDarkMode ? "Light Mode" : "Dark Mode"}
                 </button>
               </div>
               <div className="p-1.5 border-t border-anthropic-border-cream">
-                <button
-                  className="w-full flex items-center gap-3 px-3 py-2 text-[12px] text-anthropic-terracotta hover:bg-anthropic-terracotta/10 rounded-lg transition-colors text-left font-medium"
-                >
-                  <LogOut size={14} />
-                  Log Out
+                <button className="w-full flex items-center gap-3 px-3 py-2 text-[12px] text-anthropic-terracotta hover:bg-anthropic-terracotta/10 rounded-lg text-left font-medium">
+                  <LogOut size={14} /> Log Out
                 </button>
               </div>
             </div>
@@ -412,11 +290,7 @@ const Sidebar = ({
 
           <div
             onClick={() => setShowUserPopover(!showUserPopover)}
-            className={`
-              flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border border-transparent
-              hover:bg-anthropic-warm-sand/50 hover:border-anthropic-border-cream
-              ${isCollapsed ? "justify-center p-2" : ""}
-            `}
+            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border border-transparent hover:bg-anthropic-warm-sand/50 hover:border-anthropic-border-cream ${isCollapsed ? "justify-center p-2" : ""}`}
           >
             <div className="w-8 h-8 rounded-full bg-anthropic-terracotta/10 border border-anthropic-terracotta/20 flex items-center justify-center text-anthropic-terracotta shrink-0">
               <User size={16} />
@@ -427,22 +301,11 @@ const Sidebar = ({
                 <p className="text-[9px] text-anthropic-stone-gray mt-1 truncate">Administrator</p>
               </div>
             )}
-            {!isCollapsed && (
-              <div className="relative group/bell" onClick={(e) => e.stopPropagation()}>
-                <Bell size={14} className="text-anthropic-stone-gray group-hover/bell:text-anthropic-near-black transition-colors" />
-                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-anthropic-terracotta rounded-full border border-anthropic-ivory" />
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* ── HOVER POPUP CARD ──────────────────────────────────────────────────
-           Rendered OUTSIDE the sidebar div so it's never clipped.
-           z-index: 45 — always below the sidebar toggle button (z: 60 relative).
-           `left` uses a CSS transition matching the sidebar's 200ms so it
-           slides smoothly left/right whenever the sidebar collapses/expands.
-           Change 3: position is fully reactive to isCollapsed, never hidden. */}
+      {/* ── HOVER POPUP CARD ── */}
       {activeMenuId && (
         <div
           className="history-hover-card fixed flex flex-col gap-1.5 rounded-xl p-2 min-w-[188px]"
@@ -457,48 +320,15 @@ const Sidebar = ({
             boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
           }}
         >
-          {/* Visual pointer/arrow pointing left toward sidebar */}
-          <div
-            className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 border-l border-b border-anthropic-border-cream rotate-45"
-            style={{ backgroundColor: 'var(--bg-popover, #F5F0EA)' }}
-          />
-
-          {/* Close button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setActiveMenuId(null);
-            }}
-            className="absolute -top-2 -right-2 w-5 h-5 bg-white border border-anthropic-border-cream rounded-full flex items-center justify-center text-anthropic-stone-gray hover:text-red-500 hover:bg-red-50 shadow-sm transition-colors"
-            title="Close options"
-          >
+          <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 border-l border-b border-anthropic-border-cream rotate-45" style={{ backgroundColor: 'var(--bg-popover, #F5F0EA)' }} />
+          <button onClick={(e) => { e.stopPropagation(); setActiveMenuId(null); }} className="absolute -top-2 -right-2 w-5 h-5 bg-white border border-anthropic-border-cream rounded-full flex items-center justify-center text-anthropic-stone-gray hover:text-red-500 shadow-sm transition-colors">
             <X size={12} />
           </button>
-
-          {/* Dashboard and Charts option */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onHistoryItemClick(activeMenuId, 'charts');
-              setActiveMenuId(null);
-            }}
-            title="Open Charts"
-            className="w-full flex items-center gap-3 py-2 px-4 bg-anthropic-warm-sand/50 border border-anthropic-border-warm text-anthropic-near-black rounded-lg hover:bg-anthropic-warm-sand transition-all transform active:scale-95"
-          >
+          <button onClick={(e) => { e.stopPropagation(); onHistoryItemClick(activeMenuId, 'charts'); setActiveMenuId(null); }} className="w-full flex items-center gap-3 py-2 px-4 bg-anthropic-warm-sand/50 border border-anthropic-border-warm text-anthropic-near-black rounded-lg hover:bg-anthropic-warm-sand transition-all transform active:scale-95">
             <LayoutDashboard size={14} className="shrink-0" />
             <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">dashboard and charts</span>
           </button>
-
-          {/* Chat Analysis option */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onHistoryItemClick(activeMenuId, 'chat');
-              setActiveMenuId(null);
-            }}
-            title="Open Assistant"
-            className="w-full flex items-center gap-3 py-2 px-4 bg-anthropic-terracotta text-white rounded-lg hover:opacity-90 transition-all transform active:scale-95 font-medium"
-          >
+          <button onClick={(e) => { e.stopPropagation(); onHistoryItemClick(activeMenuId, 'chat'); setActiveMenuId(null); }} className="w-full flex items-center gap-3 py-2 px-4 bg-anthropic-terracotta text-white rounded-lg hover:opacity-90 transition-all transform active:scale-95 font-medium">
             <Sparkles size={14} className="shrink-0" />
             <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap">chat analysis</span>
           </button>

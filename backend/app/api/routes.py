@@ -241,7 +241,13 @@ async def get_status(task_id: str):
     """
     result = get_analysis_by_id(task_id)
     if result is None:
+        logger.warning("Status check for unknown task_id: %s", task_id)
         return JSONResponse(status_code=404, content={"status": "not_found"})
+    
+    # Log progress for long-running tasks
+    if result.get("status") == "running":
+         logger.info("Task %s is still running...", task_id)
+    
     return JSONResponse(content=result)
 
 # ─────────────────────────────────────────────
@@ -314,29 +320,45 @@ class ChatRequest(BaseModel):
 
 @router.post("/chat")
 async def chat(req: ChatRequest):
+    logger.info("Chat request: dataset_id=%s | query=%r", req.dataset_id, req.query[:60])
     df = data_store.get(req.dataset_id)
 
-    # Rehydrate dataframe from DB if missing in memory
+    # Rehydrate dataframe from DB if missing in memory (happens on server restart/free tier)
     if df is None:
+        logger.info("Dataset %s not in memory, attempting rehydration from DB...", req.dataset_id)
         doc = get_analysis_by_dataset_id(req.dataset_id)
         if doc and doc.get("file_id"):
             contents = get_file(doc["file_id"])
             if contents:
                 filename = doc.get("filename", "")
-                if filename.endswith(".csv"):
-                    df = pd.read_csv(io.BytesIO(contents))
-                elif filename.endswith(".xlsx"):
-                    df = pd.read_excel(io.BytesIO(contents))
-                if df is not None:
-                    data_store._store[req.dataset_id] = df
+                try:
+                    if filename.endswith(".csv"):
+                        df = pd.read_csv(io.BytesIO(contents))
+                    elif filename.endswith(".xlsx"):
+                        df = pd.read_excel(io.BytesIO(contents))
+                    
+                    if df is not None:
+                        data_store._store[req.dataset_id] = df
+                        logger.info("Rehydration successful for dataset %s (%s)", req.dataset_id, filename)
+                except Exception as e:
+                    logger.error("Failed to parse file during rehydration: %s", e)
+            else:
+                logger.error("File content missing in GridFS for file_id: %s", doc.get("file_id"))
+        else:
+            logger.warning("No analysis record or file_id found for dataset_id: %s", req.dataset_id)
 
     if df is None:
+        logger.error("Chat failed: Could not rehydrate dataframe for dataset_id %s", req.dataset_id)
         return JSONResponse(status_code=400, content={"error": "Invalid dataset_id or dataset expired"})
 
-    service = ChatService(df)
-    result = await service.chat(req.query, history=req.history)
-    
-    # Save the chat to database
-    append_chat(req.dataset_id, req.query, result.get("answer"), result.get("table"))
-    
-    return result
+    try:
+        service = ChatService(df)
+        result = await service.chat(req.query, history=req.history)
+        
+        # Save the chat to database
+        append_chat(req.dataset_id, req.query, result.get("answer"), result.get("table"), is_summary=result.get("is_summary", False))
+        
+        return result
+    except Exception as e:
+        logger.exception("Error during chat processing:")
+        return JSONResponse(status_code=500, content={"error": str(e)})

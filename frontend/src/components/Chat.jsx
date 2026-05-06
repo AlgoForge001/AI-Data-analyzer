@@ -8,6 +8,11 @@ import {
   X,
   Sparkles,
   Zap,
+  TrendingUp,
+  ClipboardCheck,
+  BarChart3,
+  Info,
+  List
 } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || "https://javax.onrender.com";
@@ -26,6 +31,120 @@ const API_URL = import.meta.env.VITE_API_URL || "https://javax.onrender.com";
  *  - savedMessages       : array   – previously persisted messages to restore
  *                                    (Bug 2 / persistence fix)
  */
+
+const SummaryReport = ({ data }) => {
+  if (!data) return null;
+
+  return (
+    <div className="flex flex-col gap-6 w-full animate-fade-in py-2">
+      {/* Title & Overview */}
+      <div className="space-y-2">
+        <h3 className="text-[18px] font-serif font-bold text-anthropic-near-black leading-tight">
+          {data.title}
+        </h3>
+        <p className="text-[13px] text-anthropic-stone-gray leading-relaxed italic">
+          {data.overview}
+        </p>
+      </div>
+
+      {/* Key Metrics Grid */}
+      {data.key_metrics && data.key_metrics.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {data.key_metrics.map((metric, i) => (
+            <div key={i} className="bg-white border border-anthropic-border-cream p-3 rounded-xl shadow-sm">
+              <div className="text-[10px] uppercase tracking-wider text-anthropic-stone-gray mb-1 font-bold">
+                {metric.label}
+              </div>
+              <div className="text-[16px] font-serif font-bold text-anthropic-terracotta">
+                {metric.value}
+              </div>
+              {metric.plain_note && (
+                <div className="text-[11px] text-anthropic-olive-gray mt-1 leading-snug">
+                  {metric.plain_note}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Highlights */}
+      {data.highlights && data.highlights.length > 0 && (
+        <div className="bg-anthropic-warm-sand/30 border border-anthropic-border-cream rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp size={14} className="text-anthropic-terracotta" />
+            <span className="text-[12px] font-bold uppercase tracking-tight text-anthropic-near-black">
+              Key Highlights
+            </span>
+          </div>
+          <ul className="space-y-2">
+            {data.highlights.map((h, i) => (
+              <li key={i} className="flex gap-2 text-[12px] text-anthropic-near-black leading-relaxed">
+                <span className="text-anthropic-terracotta shrink-0">•</span>
+                {h}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Detailed Sections */}
+      {data.sections && data.sections.map((section, i) => (
+        <div key={i} className="space-y-3">
+          <div className="flex items-center gap-2 border-b border-anthropic-border-cream pb-1">
+            <BarChart3 size={14} className="text-anthropic-olive-gray" />
+            <h4 className="text-[14px] font-bold text-anthropic-near-black font-serif">
+              {section.heading}
+            </h4>
+          </div>
+          <p className="text-[12px] text-anthropic-stone-gray leading-relaxed">
+            {section.body}
+          </p>
+          {section.subsections && (
+            <div className="grid grid-cols-1 gap-2 pl-2">
+              {section.subsections.map((sub, j) => (
+                <div key={j} className="bg-white/50 border border-anthropic-border-cream/50 rounded-lg p-3">
+                  <div className="text-[13px] font-bold text-anthropic-near-black mb-1">{sub.name}</div>
+                  <div className="text-[11px] text-anthropic-terracotta font-medium mb-2 italic">"{sub.verdict}"</div>
+                  <div className="flex flex-wrap gap-4">
+                    {sub.stats && sub.stats.map((s, k) => (
+                      <div key={k} className="flex flex-col">
+                        <span className="text-[9px] uppercase text-anthropic-stone-gray font-bold">{s.label}</span>
+                        <span className="text-[13px] font-serif font-bold text-anthropic-near-black">{s.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Recommendations */}
+      {data.recommendations && data.recommendations.length > 0 && (
+        <div className="bg-anthropic-near-black text-anthropic-ivory rounded-xl p-4 shadow-elegant">
+          <div className="flex items-center gap-2 mb-3">
+            <ClipboardCheck size={14} className="text-anthropic-terracotta" />
+            <span className="text-[12px] font-bold uppercase tracking-tight">
+              Actionable Recommendations
+            </span>
+          </div>
+          <ul className="space-y-3">
+            {data.recommendations.map((r, i) => (
+              <li key={i} className="flex gap-3 text-[12px] leading-relaxed">
+                <div className="flex-shrink-0 w-5 h-5 rounded-full bg-anthropic-terracotta/20 flex items-center justify-center text-anthropic-terracotta text-[10px] font-bold">
+                  {i + 1}
+                </div>
+                {r}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
 const Chat = ({ datasetId, onClose, initialSummary, initialQuery, onInitialQueryFired, savedMessages, onShowCharts }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -61,7 +180,12 @@ const Chat = ({ datasetId, onClose, initialSummary, initialQuery, onInitialQuery
       if (savedMessages && savedMessages.length > 0) {
         restoredMessages = savedMessages.flatMap((c) => [
           { role: "user", content: c.query },
-          { role: "assistant", content: c.answer, table: c.table || undefined },
+          { 
+            role: "assistant", 
+            content: c.answer, 
+            table: c.table || undefined,
+            isSummary: c.is_summary || (typeof c.answer === 'string' && c.answer.includes('"report_type": "summary"'))
+          },
         ]);
         setMessages(restoredMessages);
       } else if (datasetId) {
@@ -74,7 +198,12 @@ const Chat = ({ datasetId, onClose, initialSummary, initialQuery, onInitialQuery
             if (data.chats && data.chats.length > 0) {
               restoredMessages = data.chats.flatMap((c) => [
                 { role: "user", content: c.query },
-                { role: "assistant", content: c.answer, table: c.table || undefined },
+                { 
+                  role: "assistant", 
+                  content: c.answer, 
+                  table: c.table || undefined,
+                  isSummary: c.is_summary || (typeof c.answer === 'string' && c.answer.includes('"report_type": "summary"'))
+                },
               ]);
               setMessages(restoredMessages);
             }
@@ -109,7 +238,12 @@ const Chat = ({ datasetId, onClose, initialSummary, initialQuery, onInitialQuery
           const data = await res.json();
           setMessages((prev) => [
             ...prev,
-            { role: "assistant", content: data.answer, table: data.table },
+            { 
+              role: "assistant", 
+              content: data.answer, 
+              table: data.table,
+              isSummary: data.is_summary || (typeof data.answer === 'string' && data.answer.includes('"report_type": "summary"'))
+            },
           ]);
         } catch (err) {
           console.error("Initial Chat Error:", err);
@@ -159,7 +293,12 @@ const Chat = ({ datasetId, onClose, initialSummary, initialQuery, onInitialQuery
 
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.answer, table: data.table },
+        { 
+          role: "assistant", 
+          content: data.answer, 
+          table: data.table,
+          isSummary: data.is_summary || (typeof data.answer === 'string' && data.answer.includes('"report_type": "summary"'))
+        },
       ]);
     } catch (err) {
       console.error("Chat Error:", err);
@@ -254,7 +393,19 @@ const Chat = ({ datasetId, onClose, initialSummary, initialQuery, onInitialQuery
                       : "bg-anthropic-warm-sand/50 border border-anthropic-border-cream text-anthropic-near-black"
                   }`}
               >
-                {msg.content}
+                {msg.isSummary ? (
+                  <SummaryReport 
+                    data={(() => {
+                      try {
+                        return typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
+                      } catch (e) {
+                        return null;
+                      }
+                    })()} 
+                  />
+                ) : (
+                  msg.content
+                )}
 
                 {msg.table && (
                   <div className="mt-4 overflow-hidden border border-anthropic-border-cream bg-white/60 shadow-sm">

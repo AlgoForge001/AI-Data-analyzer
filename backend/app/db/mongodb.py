@@ -138,7 +138,7 @@ def update_analysis_result(task_id: str, status: str, result_data: dict = None, 
     except Exception as e:
         logger.error("Error updating analysis result: %s", str(e))
 
-def append_chat(dataset_id: str, query: str, answer: str, table: list = None):
+def append_chat(dataset_id: str, query: str, answer: str, table: list = None, is_summary: bool = False):
     """Appends a chat interaction to the analysis record."""
     if chats_collection is None:
         return
@@ -148,6 +148,7 @@ def append_chat(dataset_id: str, query: str, answer: str, table: list = None):
             "query": query,
             "answer": answer,
             "table": table,
+            "is_summary": is_summary,
             "timestamp": datetime.now(timezone.utc)
         }
         chats_collection.update_one(

@@ -139,6 +139,19 @@ function App() {
     fetchHistory();
   }, [fetchHistory]);
 
+  const handleFileSelect = (e) => {
+    const uploadedFile = e.target.files[0];
+    if (uploadedFile) {
+      setFile(uploadedFile);
+      setDatasetId(null);        // Clear previous session ID
+      setSessionHistory([]);     // Clear previous interactions
+      setAnalysisData(null);     // Clear previous data
+      setViewingHistoryItem(null);
+    }
+    // Reset value so same file can be selected again
+    e.target.value = '';
+  };
+
   // ── start analysis ──
   const handleAnalyze = useCallback(async () => {
     // If we are in an existing session (datasetId exists) and want to generate more charts
@@ -165,6 +178,7 @@ function App() {
     if (!isExistingSession) {
       setAnalysisData(null);
       setDatasetId(null);
+      setSessionHistory([]); // Clear session history for new file upload
     }
     setShowChat(false);
     setActivePage('dashboard');
@@ -191,7 +205,7 @@ function App() {
         throw new Error(text || `Server error: ${startRes.status}`);
       }
 
-      const { task_id } = await startRes.json();
+      const { task_id, dataset_id: returnedDatasetId } = await startRes.json();
       taskIdRef.current = task_id;
       setIsUploading(false);
       pollingRef.current = true;
@@ -229,9 +243,8 @@ function App() {
         if (result.status === 'error') throw new Error(result.error || 'Analysis failed');
       }
     } catch (err) {
-      if (pollingRef.current) {
-        setError(err.message || 'Failed to connect to the analysis engine');
-      }
+      console.error('Analysis Error:', err);
+      setError(err.message || 'Failed to connect to the analysis engine');
     } finally {
       resetState();
       fetchHistory();
@@ -262,7 +275,7 @@ function App() {
           const disposition = fileRes.headers.get('Content-Disposition') || '';
           const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
           let filename = filenameMatch ? filenameMatch[1] : null;
-          
+
           if (!filename) {
             if (viewingHistoryItem && viewingHistoryItem.filename) {
               filename = viewingHistoryItem.filename;
@@ -272,7 +285,7 @@ function App() {
               filename = 'data.csv';
             }
           }
-          
+
           activeFile = new File([blob], filename, { type: blob.type });
           fileRef.current = activeFile; // Cache for future follow-ups
         }
@@ -307,7 +320,7 @@ function App() {
       if (datasetId) {
         formData.append('dataset_id', datasetId);
       }
-      
+
       const startRes = await fetch(`${API_URL}/start-analysis`, {
         method: 'POST',
         body: formData
@@ -424,6 +437,7 @@ function App() {
     setPrompt('');
     setFile(null);
     setDatasetId(null);        // ← critical: clear session so cards re-lock
+    setSessionHistory([]);     // Clear interactions
     setCurrentView('new');
     setViewingHistoryItem(null);
     setShowChat(false);
@@ -580,8 +594,8 @@ function App() {
                         <button
                           onClick={() => fileInputAppRef.current?.click()}
                           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all shadow-sm max-w-full ${file
-                              ? 'bg-anthropic-warm-sand border border-anthropic-terracotta/30 text-anthropic-near-black hover:bg-anthropic-warm-sand/70'
-                              : 'bg-anthropic-near-black text-white hover:scale-105 active:scale-95'
+                            ? 'bg-anthropic-warm-sand border border-anthropic-terracotta/30 text-anthropic-near-black hover:bg-anthropic-warm-sand/70'
+                            : 'bg-anthropic-near-black text-white hover:scale-105 active:scale-95'
                             }`}
                         >
                           <Database size={16} className={`shrink-0 ${file ? 'text-anthropic-terracotta' : 'text-white'}`} />
@@ -599,8 +613,8 @@ function App() {
                               {/* Generate Charts card */}
                               <div
                                 className={`action-card ${!file && !datasetId ? 'card-locked' : ''} p-4 sm:p-6 bg-white border rounded-2xl text-left transition-all cursor-pointer group ${selectedAction === 'charts'
-                                    ? 'border-anthropic-terracotta shadow-md'
-                                    : 'border-anthropic-border-cream hover:border-anthropic-border-warm'
+                                  ? 'border-anthropic-terracotta shadow-md'
+                                  : 'border-anthropic-border-cream hover:border-anthropic-border-warm'
                                   }`}
                                 onClick={() => {
                                   if (!file && !datasetId) return;
@@ -633,8 +647,8 @@ function App() {
                               {/* Chat Feature card */}
                               <div
                                 className={`action-card ${!file && !datasetId ? 'card-locked' : ''} p-4 sm:p-6 bg-white border rounded-2xl text-left transition-all cursor-pointer group ${selectedAction === 'chat'
-                                    ? 'border-anthropic-terracotta shadow-md'
-                                    : 'border-anthropic-border-cream hover:border-anthropic-border-warm'
+                                  ? 'border-anthropic-terracotta shadow-md'
+                                  : 'border-anthropic-border-cream hover:border-anthropic-border-warm'
                                   }`}
                                 onClick={() => {
                                   if (!file && !datasetId) return;
@@ -829,10 +843,7 @@ function App() {
               <input
                 type="file"
                 ref={fileInputAppRef}
-                onChange={(e) => {
-                  const uploadedFile = e.target.files[0];
-                  if (uploadedFile) setFile(uploadedFile);
-                }}
+                onChange={handleFileSelect}
                 className="hidden"
                 accept=".csv,.xlsx,.json"
               />
@@ -889,7 +900,6 @@ function App() {
                     }
                   />
 
-                  {/* Extra spacing */}
                   <div className="h-12" />
                 </div>
               )}

@@ -117,7 +117,7 @@ const BottomInputBar = ({
                   }
                 `}
               >
-                {isUploading ? (
+                {isUploading || (!isCancelling && loading) ? (
                   <Loader2 size={16} className="animate-spin shrink-0" />
                 ) : isCancelling ? (
                   <Loader2 size={16} className="animate-spin shrink-0" />
@@ -125,7 +125,7 @@ const BottomInputBar = ({
                   <X size={16} className="shrink-0" />
                 )}
                 <span className="hidden sm:inline whitespace-nowrap">
-                  {isUploading ? 'Uploading...' : isCancelling ? 'Cancelling...' : 'Cancel'}
+                  {isUploading ? 'Uploading...' : isCancelling ? 'Cancelling...' : 'Processing...'}
                 </span>
               </button>
             ) : (
