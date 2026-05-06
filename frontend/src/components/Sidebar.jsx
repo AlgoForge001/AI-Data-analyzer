@@ -124,6 +124,7 @@ const Sidebar = ({
   // Close popup on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Handle History Menu
       if (
         activeMenuId &&
         !event.target.closest('.history-hover-card') &&
@@ -132,10 +133,19 @@ const Sidebar = ({
       ) {
         setActiveMenuId(null);
       }
+      
+      // Handle User Popover
+      if (
+        showUserPopover &&
+        !event.target.closest('.user-popover') &&
+        !event.target.closest('.user-trigger')
+      ) {
+        setShowUserPopover(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [activeMenuId]);
+  }, [activeMenuId, showUserPopover]);
 
   const handleItemClick = (e, item) => {
     e.stopPropagation();
@@ -290,7 +300,7 @@ const Sidebar = ({
 
           <div
             onClick={() => setShowUserPopover(!showUserPopover)}
-            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border border-transparent hover:bg-anthropic-warm-sand/50 hover:border-anthropic-border-cream ${isCollapsed ? "justify-center p-2" : ""}`}
+            className={`user-trigger flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border border-transparent hover:bg-anthropic-warm-sand/50 hover:border-anthropic-border-cream ${isCollapsed ? "justify-center p-2" : ""}`}
           >
             <div className="w-8 h-8 rounded-full bg-anthropic-terracotta/10 border border-anthropic-terracotta/20 flex items-center justify-center text-anthropic-terracotta shrink-0">
               <User size={16} />
